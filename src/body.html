@@ -1,0 +1,129 @@
+<div class="wrap" id="wrap">
+<div class="app">
+  <div class="banner" id="banner">MISSILE THREAT · CONUS · OPREP-3 PINNACLE</div>
+  <div class="top">
+    <div class="brand"><b>18분 상황실</b> · <span id="scnTag">SCN ----</span></div>
+    <span class="role" id="roleTag">1막 · 당직 장교</span>
+    <div class="clock" id="clock">18:00</div>
+    <div class="status">
+      <span class="pill" id="pTrack">TRK —</span>
+      <span class="pill" id="pDefcon">DEFCON 4</span>
+      <span class="pill" id="pGmd">GMD 대기</span>
+      <span class="pill" id="pPres">POTUS: —</span>
+      <span class="pill" id="pSpeed">×3</span>
+      <button class="pill" id="snd" type="button" aria-pressed="true">소리 ON</button>
+      <button class="pill" id="mus" type="button" aria-pressed="true">음악 ON</button>
+    </div>
+  </div>
+  <div class="wall">
+    <div class="clocks" id="clocks"></div>
+    <div class="lamps" id="lamps"></div>
+    <div class="eam" id="eam"></div>
+  </div>
+  <div class="ticker"><span id="ticker">대기 중</span></div>
+  <div class="grid">
+    <div class="col left">
+      <section class="panel" style="flex:1" aria-label="상황판">
+        <div class="ph"><span id="mapTitle">NORAD 공통작전상황도 · 북태평양</span><span id="eta">TTI —</span></div>
+        <div class="pb" style="padding:4px"><canvas id="map" width="640" height="400" aria-label="북태평양 지도 위 미사일 궤적과 요격 상황"></canvas></div>
+        <div class="tele" id="tele">
+          <div><span>단계</span><b id="tPhase">—</b></div>
+          <div><span>고도</span><b id="tAlt">—</b></div>
+          <div><span>속도</span><b id="tVel">—</b></div>
+          <div><span>센서</span><b id="tSens">—</b></div>
+          <div><span>발사 지점</span><b id="tLaunch" class="u">미확정</b></div>
+          <div><span>탄착 추정</span><b id="tImp" class="u">산출 중</b></div>
+          <div><span>오차 반경</span><b id="tCep">—</b></div>
+          <div><span>재진입체</span><b id="tRv">미확인</b></div>
+          <div><span>탄두</span><b id="tWh" class="u">미확인</b></div>
+          <div><span>요격 자산</span><b id="tAsset">—</b></div>
+          <div><span>교전 창</span><b id="tWin">—</b></div>
+          <div><span>데이터</span><b id="tData">LIVE</b></div>
+        </div>
+        <div id="gmdCon" hidden>
+          <div class="kc" id="kc"></div>
+          <div class="gbi" id="gbi"></div>
+        </div>
+        <div id="presCon" hidden>
+          <div class="brief" id="briefDoc"></div>
+          <div class="biscuit"><div class="lab">인증 카드 · 금일 코드</div><div class="code" id="bisCode">—</div></div>
+        </div>
+      </section>
+    </div>
+    <section class="panel" aria-label="보고 피드">
+      <div class="ph"><span>보고 피드 <span id="feedCount">0</span></span>
+        <div class="filters" role="group" aria-label="필터">
+          <button type="button" data-f="all" aria-pressed="true">전체</button><button type="button" data-f="alert" aria-pressed="false">경보</button><button type="button" data-f="intel" aria-pressed="false">정보</button><button type="button" data-f="pres" aria-pressed="false">정무</button><button type="button" data-f="me" aria-pressed="false">내 기록</button>
+        </div></div>
+      <div class="pb" id="feed"></div>
+    </section>
+    <div class="col">
+      <section class="panel" style="flex:1.4" aria-label="결정과 작업">
+        <div class="ph"><span id="decTitle">결정·작업 대기 <span id="decCount">0</span></span><span id="presWait"></span></div>
+        <div class="pb" id="decisions"><div class="empty">아직 요구된 결정이 없습니다.</div></div>
+        <div class="folder" id="folder" hidden></div>
+        <div class="calls" id="calls">
+          <button type="button" data-c="stratcom">STRATCOM 연결</button>
+          <button type="button" data-c="dia">DIA/NSA 연결</button>
+          <button type="button" data-c="state">국무부 연결</button>
+          <button type="button" data-c="fema">FEMA 연결</button>
+          <button type="button" data-c="norad">NORAD 연결</button>
+          <button type="button" id="fixLink" hidden class="fix">회의선 재연결</button>
+          <button type="button" id="fixFeed" hidden class="fix">피드 재동기화</button>
+        </div>
+      </section>
+      <section class="panel" style="flex:1" aria-label="회의선">
+        <div class="ph"><span id="confTitle">위협평가 회의선</span><span><span class="aiTag off" id="aiTag">AI 참모 연결 중</span> · <span id="confState">미소집</span></span></div>
+        <div class="pb"><div class="stances" id="stances"></div><div class="conf" id="conf"><div class="empty">회의선이 열리지 않았습니다.</div></div></div>
+        <div class="say" id="sayRow"><input id="sayIn" type="text" maxlength="160" placeholder="회의선에 끼어든다… (Enter)" aria-label="회의선 발언"><button type="button" id="sayBtn">발언</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="ring" id="ring" hidden>
+  <h3><span id="ringWho"></span><span id="ringT"></span></h3>
+  <div class="bar"><i id="ringBar"></i></div>
+  <p id="ringQ"></p>
+  <div class="opts" id="ringOpts"></div>
+</div>
+
+<div class="overlay" id="intro">
+  <div class="sheet">
+    <div class="kicker" id="introKicker">같은 18분, 세 개의 의자</div>
+    <h1 id="introTitle">전화는 전부 당신한테 온다.</h1>
+    <p id="introBody">미사일 1발이 올라왔다. 같은 18분을 세 번 산다. 처음엔 백악관 상황실 당직 장교로, 다음엔 국가안보 부보좌관으로, 마지막엔 대통령으로. 앞에서 당신이 올린 보고가 뒤에서 당신 책상에 놓인다.</p>
+    <div class="acts" id="actsBox">
+      <div id="a1"><b>1막 · 상황실</b>당직 장교. 보고를 받고, 연결하고, 확인하고, 올린다. 결정은 다른 사람이 한다.</div>
+      <div id="a2"><b>2막 · 요격</b>국가안보 부보좌관. 요격·경보·DEFCON·동맹·옵션 폴더. 참모들이 당신을 통해 싸운다.</div>
+      <div id="a3"><b>3막 · 대통령</b>인증하고, 옵션 폴더를 열고, 한 번 결정한다. 혹은 하지 않는다.</div>
+    </div>
+    <div class="handoff" id="handoff" hidden></div>
+    <div class="scn" id="introScn"></div>
+    <div class="speed" role="group" aria-label="시계 속도">
+      <button type="button" data-speed="1" aria-pressed="false">실시간 ×1</button>
+      <button type="button" data-speed="2" aria-pressed="false">×2</button>
+      <button type="button" data-speed="3" aria-pressed="true">×3</button>
+    </div>
+    <button class="btn primary" id="start">1막 시작</button>
+    <button class="btn" id="reroll" style="margin-left:6px">다른 상황</button>
+  </div>
+</div>
+
+<div class="overlay" id="ending" hidden>
+  <div class="sheet">
+    <div class="kicker" id="endKicker"></div>
+    <h1 id="endTitle"></h1>
+    <p id="endBody"></p>
+    <div class="verdict">
+      <div class="vbox"><h4>당시 알 수 있었던 것</h4><ul id="known"></ul></div>
+      <div class="vbox"><h4>실제로 일어난 일</h4><ul id="truth"></ul></div>
+    </div>
+    <div class="h4">세 의자의 기록</div>
+    <div class="tl" id="tl"></div>
+    <div class="h4">판정</div>
+    <div class="score" id="score"></div>
+    <button class="btn primary" id="again">다시, 새 상황</button>
+  </div>
+</div>
+</div>
