@@ -19,6 +19,10 @@ function act1(){
   at(.065,()=>{if(f.conf==='now'){$('confState').textContent='개설됨';say('국방장관','"뭐가 올라온 건지부터. 한 발이 확실한가."');say('합참의장','"STRATCOM, 요격 창 언제 열리나."',true)}});
   at(.088,()=>say('STRATCOM 사령관',`"창은 ${fmt(G.TOTAL*.44)} 전후. ${sc.assets.n}. GBI 단발 61%."`));
   at(.095,()=>post('WHSR 당직 부사관','noise','하원의장실 전화. "무슨 일이냐." 대기시킴.'));
+  at(.12,()=>card('c1b','회의 격상 요청','NMCC가 위협평가회의(THREAT)를 미사일공격회의(MAC)로 격상하자고 합니다. 격상하면 대통령·국방장관이 의무 참석하고 핵 지휘 절차가 열립니다.',[
+    {k:'mac',t:'MAC 격상 요청 전달',s:'절차상 맞다. 되돌릴 수 없다.',go:()=>{f.mac='yes';me('미사일공격회의(MAC) 격상 전달.');$('confTitle').textContent='미사일공격회의 (MAC)';post('NMCC','alert','MAC 개설. 전 주요 직위자 참석 의무. NC3 체계 활성.','HIGH')}},
+    {k:'hold',t:'THREAT 유지',s:'탄착점 확정 후.',go:()=>{f.mac='hold';me('THREAT 회의 유지.')}},
+  ],35,()=>{f.mac='late';post('NMCC','alert','WHSR 응답 없음. NMCC 자체 판단 MAC 격상.');$('confTitle').textContent='미사일공격회의 (MAC)'}));
   at(.10,()=>ring('군사보좌관 직통','대통령께서 물으십니다. "핵인가?"',[
     {t:'"탄두 확인 안 됐습니다. 핵 배제 못 합니다."',go:()=>{f.press='honest';me('POTUS 질의: 탄두 미확인, 핵 배제 불가.')}},
     {t:'"핵으로 가정하고 움직이셔야 합니다."',go:()=>{f.press='assume';me('POTUS 질의: 핵 가정 권고.');$('tWh').textContent='핵 가정'}},
@@ -37,10 +41,12 @@ function act1(){
   at(.15,()=>post('WHSR 당직 부사관','noise',`${city.n} 시장실 전화. "뉴스에 뜰 거냐." 대기 4번.`));
   at(.175,()=>say('국방장관',f.attrib==='dprk'?'"북한이면 평양에 지금 전화해도 안 받는다. 요격부터."':'"주체 모르면 요격 말고는 할 게 없다. 다 써."',true));
   at(.185,()=>say('국가안보보좌관','"다 쓰면 두 번째 미사일엔 빈손이다. 1발 쏘고 봐야 한다."',true));
-  at(.19,()=>{f.gmd=f.gmd||(f.attrib==='unknown'?'single':'salvo');say('합참의장',`"회의선 결정: GBI ${f.gmd==='salvo'?'일제':'1발 후 재평가'}. 당직, 포트 그릴리에 전달."`,true);card('c6','교전 결정 전달','회의선이 요격 방식을 정했습니다. 당신은 전달합니다. 그 전에 한 가지 확인을 끼워 넣을 수 있습니다.',[
+  at(.19,()=>{const g=sc.assets.gbi;const opts=[{k:'salvo',t:`GBI ${g}발 일제`},{k:'single',t:'1발 후 재평가'},{k:'delegate',t:'현장 위임'}].filter(o=>g>=2||o.k!=='salvo');
+    AI.decide('GBI 교전 방식',opts,(k,lines)=>{f.gmd=k;say('합참의장',`"회의선 결정: ${opts.find(o=>o.k===k).t}. 당직, 포트 그릴리에 전달."`,true);
+    card('c6','교전 결정 전달','회의선이 요격 방식을 정했습니다. 당신은 전달합니다. 그 전에 한 가지 확인을 끼워 넣을 수 있습니다.',[
     {k:'relay',t:'그대로 전달',s:'',go:()=>{me(`포트 그릴리에 교전 결정 전달: ${f.gmd==='salvo'?'일제':'1발'}.`)}},
     {k:'ask',t:'"2차 항적 분석 끝났습니까?" 확인 후 전달',s:'20초.',go:()=>{me('2차 항적 확인 후 교전 결정 전달.');if(sc.second)post('NORAD 지휘센터','intel',sc.second.real?'2차 항적: 독립 항적 가능성 높음.':'2차 항적: 부스터 반사 가능성 높음.','중간');else post('NORAD 지휘센터','intel','추가 항적 없음.','높음')}},
-  ],30,()=>{post('GMD 포트 그릴리','alert','전달 지연. 포트 그릴리가 STRATCOM 직접 수신.')})});
+  ],30,()=>{post('GMD 포트 그릴리','alert','전달 지연. 포트 그릴리가 STRATCOM 직접 수신.')})},f.attrib==='unknown'?'single':'salvo')});
   at(.23,()=>post('WHSR 당직 부사관','noise','상원 군사위원장 보좌관이 직접 내려왔다고 경호실. 못 들어오게 함.'));
   at(.25,()=>ring('국방장관 직통','"당직, 아까 뭐라고 했나. 대통령 앞에서 말이 다르면 안 돼. 지금 뭐야?"',[
     {t:'1차 판단 유지',go:()=>me('국방장관 질의: 1차 판단 유지.')},
@@ -51,6 +57,8 @@ function act1(){
   ],75,()=>{f.brief='none';f.briefItems=[];post('비서실장','alert','요약 보고 미도착. 대통령께 구두로 올림.')},'brief');
     if(c){c.items=[{k:'one',t:'탄도미사일 1발 발사 확인 (SBIRS·UEWR)'},{k:'imp',t:`탄착 추정 ${city.n} ±60km`},{k:'nuc',t:'핵탄두 탑재 확인'},{k:'who',t:`발사 주체 ${f.attrib==='ru'?'러시아':'북한'} 확정`},{k:'gbi',t:`요격 자산 ${sc.assets.n} 준비`},{k:'two',t:'2발 이상 발사'}].sort(()=>Math.random()-.5);renderCards()}});
   at(.29,()=>say('합참의장','"요격 결과 보고 경보 울리면 7분뿐이다. 지금 울려야 한다."',true));
+  at(.305,()=>AI.decide(`${city.n} 민방위 경보`,[{k:'now',t:'즉시 발령'},{k:'wait',t:'요격 결과 후'},{k:'hold',t:'보류'}],(k)=>{f.evac=k;say('국가안보보좌관',`"회의선 결정: 경보 ${ {now:'즉시 발령',wait:'요격 결과 후',hold:'보류'}[k]}. 당직, FEMA 전달."`,true);card('c12r','경보 결정 전달','회의선이 경보 여부를 정했습니다. FEMA 국가감시센터에 전달합니다.',[{k:'relay',t:'전달',s:'',go:()=>me(`FEMA 전달: 경보 ${k}.`)}],25,()=>{post('FEMA 국가감시센터','alert','전달 지연. NMCC 경유 수신.')})},'wait'));
+  at(.33,()=>AI.decide('경계태세(DEFCON)',[{k:3,t:'DEFCON 3'},{k:2,t:'DEFCON 2'},{k:4,t:'유지'}],(k)=>{f.defcon=+k;$('pDefcon').textContent='DEFCON '+k;$('pDefcon').className='pill'+(k==2?' red':k==3?' on':'');say('합참의장',`"회의선 결정: DEFCON ${k}."`,true)},3));
   at(.31,()=>post('WHSR 당직 부사관','noise','대변인실: 트위터에 "알래스카 레이더 비상" 확산. 대응 문의.'));
   at(.33,()=>{if(f.notify==='late'||f.notify==='cos')say('군사보좌관','"대통령께서 왜 당직이 직접 안 올렸냐고 물으셨다. 기록에 남는다."',true)});
   at(.36,()=>say('STRATCOM 사령관','"GBI 준비 완료. 창 열리면 간다."'));
@@ -77,7 +85,7 @@ function act1(){
   if(t.id==='unknown')at(.38,()=>card('b4','비국가 행위자 가설','DIA 분석관이 "국가 발사가 아닐 수 있다"는 메모를 올려달라고 합니다. 올리면 보복 논의가 멈춥니다.',[{k:'report',t:'메모 상신',s:'',go:()=>{f.nonstate='report';me('비국가 행위자 가설 메모 상신.')}},{k:'hold',t:'보류',s:'',go:()=>{f.nonstate='hold';me('비국가 가설 보류.')}}],40,()=>{f.nonstate='none'}));
   if(t.id==='sat')at(.2,()=>card('b5','러시아 우주군 확인','우주군이 러시아에 발사 통보 여부를 묻자고 합니다. 물으면 우리가 탐지했다는 걸 알립니다.',[{k:'ask',t:'확인 요청 연결',s:'',go:()=>{f.space='ask';me('러시아 우주군 확인 요청 연결.');setTimeout(()=>{if(S.running)post('국무부 작전센터','intel','러시아 우주군: "정찰위성 발사. 사전 통보 누락은 유감."','중간')},25000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.space='no';me('확인 보류.')}}],35,()=>{f.space='none'}));
   if(sc.pres.k==='abroad')at(.09,()=>card('b7','대행 권한 질의','비서실장이 "부통령 임시 권한을 검토해야 하냐"고 상황실에 묻습니다. 통신 지연 80초.',[{k:'vp',t:'"검토 필요" 전달',s:'',go:()=>{f.acting='vp';me('부통령 임시 권한 검토 전달.');$('pPres').textContent='VP 대행 검토'}},{k:'potus',t:'"대통령 연결 유지" 전달',s:'',go:()=>{f.acting='potus';me('대통령 권한 유지 전달.')}}],40,()=>{f.acting='potus'}));
-  if(sc.second)at(.36,()=>{if(sc.second.real){f.alloc=f.alloc||(sc.assets.gbi>=2?'split':'a');f.alloc2=f.alloc2||(sc.second.reserve?'reserve':sc.assets.aegis?'aegis':'none');say('합참의장',`"회의선 결정: 0418은 ${ {a:'요격 없음',split:'GBI 분산',b:'GBI 집중'}[f.alloc]}${f.alloc2==='reserve'?' + 밴덴버그 예비':f.alloc2==='aegis'?' + 이지스':''}. 당직, ${sc.second.city.n}에도 경보 문의 들어왔나?"`,true);card('c9b',`${sc.second.city.n} 경보 문의 전달`,`${sc.second.city.n} 주 비상관리청이 경보 여부를 묻습니다. 당신은 FEMA에 전달만 할 수 있습니다.`,[{k:'now',t:'"즉시 발령 요청" 전달',s:'',go:()=>{f.evac2='now';me(`${sc.second.city.n} 경보 즉시 발령 요청 전달.`)}},{k:'wait',t:'"교전 결과 후" 전달',s:'',go:()=>{f.evac2='wait';me(`${sc.second.city.n} 경보 결과 후 전달.`)}}],35,()=>{f.evac2='none'})}});
+  if(sc.second)at(.36,()=>{if(sc.second.real){const ao=[{k:'a',t:'0417 전량'},{k:'split',t:'분산'},{k:'b',t:'0418 전량'}].filter(o=>sc.assets.gbi>=2||o.k!=='split');AI.decide('2차 표적 GBI 배분',ao,(k)=>{f.alloc=k;f.alloc2=f.alloc2||(sc.second.reserve?'reserve':sc.assets.aegis?'aegis':'none');say('합참의장',`"회의선 결정: 0418은 ${ {a:'요격 없음',split:'GBI 분산',b:'GBI 집중'}[f.alloc]}${f.alloc2==='reserve'?' + 밴덴버그 예비':f.alloc2==='aegis'?' + 이지스':''}. 당직, ${sc.second.city.n}에도 경보 문의 들어왔나?"`,true);card('c9b',`${sc.second.city.n} 경보 문의 전달`,`${sc.second.city.n} 주 비상관리청이 경보 여부를 묻습니다. 당신은 FEMA에 전달만 할 수 있습니다.`,[{k:'now',t:'"즉시 발령 요청" 전달',s:'',go:()=>{f.evac2='now';me(`${sc.second.city.n} 경보 즉시 발령 요청 전달.`)}},{k:'wait',t:'"교전 결과 후" 전달',s:'',go:()=>{f.evac2='wait';me(`${sc.second.city.n} 경보 결과 후 전달.`)}}],35,()=>{f.evac2='none'})},sc.assets.gbi>=2?'split':'a')}});
   if(sc.second)at(.235,()=>card('c9','2차 항적 보고','TRK 0418이 실제인지 분리체 반사인지 모릅니다. 대통령께 "2발"로 올릴지.',[{k:'two',t:'"2발 발사"로 보고',s:'',go:()=>{f.t2rep='two';me('대통령 보고: 2발 발사 가능성.')}},{k:'one',t:'"1발, 2차 항적 분석 중"',s:'',go:()=>{f.t2rep='one';me('대통령 보고: 1발 확정, 2차 항적 미확인.')}}],40,()=>{f.t2rep='none';post('군사보좌관','alert','2차 항적 보고 누락. 대통령이 뉴스로 먼저 들으셨다.')}));
   pat(25,()=>ring('군사보좌관 직통','대통령: "끝난 건가?"',[{t:'"요격 성공. 추가 발사 감시 중. 끝났다고는 못 합니다."',go:()=>{f.over='careful';me('POTUS: 종료 아님, 감시 중 보고.')}},{t:'"끝났습니다."',go:()=>{f.over='yes';me('POTUS: 종료 보고.')}},{t:'"모릅니다."',go:()=>{f.over='dunno';me('POTUS: 모름.')}}],()=>{f.over='none'}));
   pat(85,()=>say('합참의장','"요격은 요격이고, 쏜 놈은 아직 거기 있다. 다음 발은 언제든."',true));
@@ -177,7 +185,7 @@ function act3(){
   at(start+.06,()=>card('x1','핵 지휘 인증','군사보좌관이 인증 카드를 엽니다. NMCC가 금일 코드를 요구합니다. 카드(왼쪽 아래)와 일치하는 코드를 고르십시오.',
     [sc.biscuit.real,...sc.biscuit.fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===sc.biscuit.real){f.auth='ok';me('핵 지휘 인증 완료.');SFX.good()}else{f.auth='fail';me('인증 실패. 재인증 60초.');SFX.bad();post('NMCC','alert','인증 불일치. 재인증 절차 60초.');setTimeout(()=>{if(S.running){f.auth='ok';post('NMCC','','재인증 완료.')}},60000/G.speed)}}})),
     f.nuc==='ready'?30:18,()=>{f.auth='none';post('NMCC','alert','인증 미완. 핵 옵션 실행 불가 상태.')}));
-  at(start+.062,()=>{$('bisCode').textContent=sc.biscuit.real});
+  at(start+.062,()=>{$('unseal').hidden=false;$('unseal').onclick=()=>{$('bisCode').textContent=sc.biscuit.real;$('unseal').hidden=true;me('인증 카드 봉인 해제.');SFX.tick()}});
   at(start+.08,()=>{if(!isHit()&&G.intercept!=='sat'&&!['now','wait-on'].includes(f.evac))card('x2','민방위 경보',`${city.n} 경보가 꺼져 있습니다. 부보좌관은 ${ {hold:'보류',late:'미결',wait:'결과 후'}[f.evac]||'—'}를 택했습니다.`,[{k:'go',t:'지금 발령',s:'남은 시간 '+fmt(left())+'.',go:()=>{f.evac='now';me('대통령 지시: 경보 발령.')}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac='hold';me('대통령: 경보 미발령.')}}],30,()=>{})});
   at(start+.09,()=>{if(sc.second&&sc.second.real&&!G.secondHit&&!['now','wait-on'].includes(f.evac2))card('x2b',`${sc.second.city.n} 경보`,`2차 표적 ${sc.second.city.n}. 탄착까지 ${fmt(left()+sc.second.offset)}.`,[{k:'go',t:'지금 발령',s:'',go:()=>{f.evac2='now';me(`대통령 지시: ${sc.second.city.n} 경보 발령.`)}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac2='hold';me(`대통령: ${sc.second.city.n} 경보 미발령.`)}}],30,()=>{})});
   at(start+.1,()=>openFolder());
@@ -203,9 +211,15 @@ function openFolder(){
   host.querySelectorAll('.opt3').forEach(el=>el.onclick=()=>{host.querySelectorAll('.opt3').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');S.selOpt=el.dataset.k;const b=$('execBtn');b.disabled=false;b.textContent=S.selOpt==='hold'?'보류 확정':'실행 명령'});
   $('execBtn').onclick=()=>{if(!S.selOpt)return;if(S.selOpt!=='hold'&&S.selOpt!=='conv'&&f.auth!=='ok'){post('NMCC','alert','인증 미완. 핵 옵션 실행 불가. 재래식·보류만 가능.');return}
     f.decision=S.selOpt;f.target=tgt;f.retal=S.selOpt;me(`대통령 결정: ${OPT[S.selOpt].h}${S.selOpt!=='hold'?' · 대상 '+tgt:''}.`);
-    if(S.selOpt!=='hold'){SFX.klaxon();post('NMCC','alert',`EAM 발령. ${OPT[S.selOpt].h} 실행 개시.`);$('eam').innerHTML=`<span>EAM · EXECUTE ${S.selOpt.toUpperCase()} · AUTHENTICATION ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true)}else{post('NMCC','','보류 통보. 옵션 창 유지.');say('국가안보보좌관','"...감사합니다."',true)}closeFolder()};
+    if(S.selOpt!=='hold'){eamProcedure(OPT[S.selOpt].h);$('eam').innerHTML=`<span>EAM · EXECUTE ${S.selOpt.toUpperCase()} · AUTHENTICATION ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true)}else{post('NMCC','','보류 통보. 옵션 창 유지.');say('국가안보보좌관','"...감사합니다."',true)}closeFolder()};
 }
 function closeFolder(){$('folder').hidden=true}
+// EAM: NMCC read-back → challenge/response → transmit confirmation (the real sequence, compressed)
+function eamProcedure(optName){const f=F(),sc=G.sc;
+  post('NMCC','alert',`READBACK. 대통령 명령 수신: ${optName}. 대상 ${f.target}. 확인 바람.`,'HIGH');
+  setTimeout(()=>{if(!S.running)return;ring('NMCC 당직 부장','"읽어드립니다. '+optName+'. 대상 '+f.target+'. 맞습니까?"',[{t:'"맞다. 진행."',go:()=>{me('NMCC 리드백 확인.');setTimeout(()=>challenge(),1500)}},{t:'"취소."',go:()=>{f.decision='hold';f.retal='hold';me('실행 취소. 보류.');post('NMCC','','명령 취소 접수. 보류 상태.')}}],()=>{post('NMCC','alert','리드백 미확인. 명령 보류 상태 유지.');f.decision='hold';f.retal='hold'})},2500/G.speed);
+  function challenge(){const real=sc.biscuit.real.split('-')[2];const fakes=sc.biscuit.fakes.map(x=>x.split('-')[2]);card('x9','인증 챌린지 응답','NMCC 챌린지: 금일 코드 마지막 단어를 응답하십시오.',[real,...fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===real){post('NMCC','alert','AUTHENTICATION VALID. EAM 송신 개시. 전 전략부대 수신 확인 대기.','HIGH');SFX.klaxon();$('eam').innerHTML=`<span>EAM · EXECUTE · AUTH ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true);setTimeout(()=>{if(S.running)post('STRATCOM GOC','alert','EAM 수신 확인: 미닛맨 3개 비행단, SSBN 2척, B-52 1개 대대. 실행 카운트다운 개시.','HIGH')},6000/G.speed)}else{post('NMCC','alert','AUTHENTICATION INVALID. 명령 거부. 재시도 1회 가능.','HIGH');SFX.bad();f.authFail=(f.authFail||0)+1;if(f.authFail>=2){f.decision='hold';f.retal='hold';post('NMCC','alert','인증 2회 실패. 명령 무효. 보류 상태.')}else setTimeout(challenge,1500)}}})),20,()=>{f.decision='hold';f.retal='hold';post('NMCC','alert','챌린지 응답 없음. 명령 무효.')})}
+}
 
 // ---------- random events ----------
 function runEvent(e){

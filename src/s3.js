@@ -68,12 +68,12 @@ function loop(){
   $('eta').textContent=G.intercept==='sat'?'궤도 진입':S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):'TTI '+fmt(left());
   const open=S.cards.filter(x=>!x.done).length;$('presWait').textContent=open>=2?'⚠ '+open+'건 동시 대기':'';
   if(S.ring&&Math.floor(S.elapsed*2)%2===0)SFX.tick();
-  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();
+  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
 }
 
 // ---------- act flow ----------
 function startAct(act,speed){
-  G.act=act;G.speed=speed;S=freshAct();S.running=true;
+  G.act=act;G.speed=speed;S=freshAct();S.running=true;INTEL.reset();if(act===1)WORLD.reset();$('unseal').hidden=true;
   const startAt=act===1?0:act===2?.11:.47;S.elapsed=startAt*G.TOTAL;S.startSec=S.elapsed;
   const f=F();
   $('roleTag').textContent=['','1막 · 상황실 당직 장교','2막 · 국가안보 부보좌관','3막 · 대통령'][act];$('pSpeed').textContent='×'+speed;
@@ -121,6 +121,7 @@ function finish(){
   else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
   if(!hit&&!sat)body+=evacd?' 경보 덕에 지하로 내려간 사람들이 있었다.':' 경보는 울리지 않았다. 도시는 평소처럼 움직이다 멈췄다.';
   if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${sc.second.city.n}을(를) ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
+  if(WORLD.ru.alert>=3)body+=' 그 사이 러시아 전략군은 발사 준비 단계까지 올라가 있었다.';if(WORLD.dprk.alert>=3)body+=' 북한은 2차 발사대를 전개한 상태였다.';if(WORLD.esc===0)body+=' 상대국 태세는 끝까지 평시 근처에 머물렀다. 누군가는 그걸 운이라 했고 누군가는 핫라인 덕이라 했다.';
   if(f.auth==='fail')body+=' 인증 코드를 한 번 틀렸다.';if(f.brief==='bad')body+=' 1막의 당신이 쓴 보고서에 미확인 사항이 확인으로 적혀 있었다.';
   $('endTitle').textContent=title;$('endBody').textContent=body;$('endKicker').textContent=`${sc.code} · 3막 종료 · ${sat?'오경보':hit?'표적 소실':'탄착'}`;
   $('known').innerHTML=[`발사 1발, ${sc.site.sea}`,`탄착 추정 ${city.n}`,'러시아 부인, 중국 무응답',`요격 자산 ${sc.assets.n}`,'재진입체 1개, 탄두 미확인',`상황실 1차 판단: ${ {dprk:'북한',ru:'러시아',unknown:'미상',none:'미보고'}[f.attrib]||'—'}`].map(x=>`<li>${x}</li>`).join('');
@@ -140,5 +141,5 @@ $('start').onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioC
 AI.init();
 $('reroll').onclick=showIntro;
 $('again').onclick=()=>{$('ending').hidden=true;showIntro();$('intro').hidden=false};
-showIntro();
+MOBILE.init();showIntro();
 })();

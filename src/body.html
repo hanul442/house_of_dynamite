@@ -21,8 +21,14 @@
     <div class="eam" id="eam"></div>
   </div>
   <div class="ticker"><span id="ticker">대기 중</span></div>
+  <div class="tabs" id="tabs" role="tablist">
+    <button type="button" data-tab="board" aria-pressed="false">상황판<i hidden></i></button>
+    <button type="button" data-tab="feed" aria-pressed="true">보고<i hidden></i></button>
+    <button type="button" data-tab="dec" aria-pressed="false">결정<i hidden></i></button>
+    <button type="button" data-tab="conf" aria-pressed="false">회의선<i hidden></i></button>
+  </div>
   <div class="grid">
-    <div class="col left">
+    <div class="col left" data-panel="board">
       <section class="panel" style="flex:1" aria-label="상황판">
         <div class="ph"><span id="mapTitle">NORAD 공통작전상황도 · 북태평양</span><span id="eta">TTI —</span></div>
         <div class="pb" style="padding:4px"><canvas id="map" width="640" height="400" aria-label="북태평양 지도 위 미사일 궤적과 요격 상황"></canvas></div>
@@ -39,6 +45,8 @@
           <div><span>요격 자산</span><b id="tAsset">—</b></div>
           <div><span>교전 창</span><b id="tWin">—</b></div>
           <div><span>데이터</span><b id="tData">LIVE</b></div>
+          <div style="grid-column:1/-1"><span>상대국 태세</span><b id="tWorld">RU 경계 · DPRK 경계 · PRC 평시</b></div>
+          <div style="grid-column:1/-1"><span>주체 추정 (기관 평균)</span><b id="tAttrib" class="u">—</b></div>
         </div>
         <div id="gmdCon" hidden>
           <div class="kc" id="kc"></div>
@@ -46,19 +54,19 @@
         </div>
         <div id="presCon" hidden>
           <div class="brief" id="briefDoc"></div>
-          <div class="biscuit"><div class="lab">인증 카드 · 금일 코드</div><div class="code" id="bisCode">—</div></div>
+          <div class="biscuit"><div class="lab">인증 카드 · 금일 코드</div><div class="code" id="bisCode">— 봉인 —</div><button type="button" class="btn" id="unseal" style="margin-top:6px">봉인 해제</button></div>
         </div>
       </section>
     </div>
-    <section class="panel" aria-label="보고 피드">
+    <section class="panel" aria-label="보고 피드" data-panel="feed">
       <div class="ph"><span>보고 피드 <span id="feedCount">0</span></span>
         <div class="filters" role="group" aria-label="필터">
           <button type="button" data-f="all" aria-pressed="true">전체</button><button type="button" data-f="alert" aria-pressed="false">경보</button><button type="button" data-f="intel" aria-pressed="false">정보</button><button type="button" data-f="pres" aria-pressed="false">정무</button><button type="button" data-f="me" aria-pressed="false">내 기록</button>
         </div></div>
       <div class="pb" id="feed"></div>
     </section>
-    <div class="col">
-      <section class="panel" style="flex:1.4" aria-label="결정과 작업">
+    <div class="col right">
+      <section class="panel" style="flex:1.4" aria-label="결정과 작업" data-panel="dec">
         <div class="ph"><span id="decTitle">결정·작업 대기 <span id="decCount">0</span></span><span id="presWait"></span></div>
         <div class="pb" id="decisions"><div class="empty">아직 요구된 결정이 없습니다.</div></div>
         <div class="folder" id="folder" hidden></div>
@@ -72,7 +80,7 @@
           <button type="button" id="fixFeed" hidden class="fix">피드 재동기화</button>
         </div>
       </section>
-      <section class="panel" style="flex:1" aria-label="회의선">
+      <section class="panel" style="flex:1" aria-label="회의선" data-panel="conf">
         <div class="ph"><span id="confTitle">위협평가 회의선</span><span><span class="aiTag off" id="aiTag">AI 참모 연결 중</span> · <span id="confState">미소집</span></span></div>
         <div class="pb"><div class="stances" id="stances"></div><div class="conf" id="conf"><div class="empty">회의선이 열리지 않았습니다.</div></div></div>
         <div class="say" id="sayRow"><input id="sayIn" type="text" maxlength="160" placeholder="회의선에 끼어든다… (Enter)" aria-label="회의선 발언"><button type="button" id="sayBtn">발언</button></div>

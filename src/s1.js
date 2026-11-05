@@ -56,18 +56,20 @@ const isHit=()=>G.intercept==='hit'||G.intercept==='hit2'||G.aegisHit===true;
 function post(src,cls,text,conf){
   cls=cls||'';S.feed.push({t:left(),src,cls,text});
   const d=document.createElement('div');d.className='msg '+cls;d.dataset.cls=cls||'ops';if(filter!=='all'&&cls!==filter)d.classList.add('hide');
-  d.innerHTML=`<div class="t">${S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):fmt(left())}</div><div><span class="src ${cls}">${src}</span>${conf?`<span class="conf">신뢰도 ${conf}</span>`:''}<p>${text}</p></div>`;
+  const CF={'낮음':'LOW','중간':'MED','높음':'HIGH'};const cf=conf?(CF[conf]||conf):'';const addr=['','WHSR','NSC','POTUS'][G.act];const route=cls==='me'?`${src} ▸ ALL`:cls==='noise'||cls==='pres'?src:`${src} ▸ ${addr}`;
+  d.innerHTML=`<div class="t">${S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):fmt(left())}</div><div><span class="src ${cls}">${route}</span>${cf?`<span class="conf">CONF ${cf}</span>`:''}<p>${text}</p></div>`;
+  if(typeof MOBILE!=='undefined')MOBILE.bump('feed');
   const f=$('feed');f.appendChild(d);f.scrollTop=f.scrollHeight;$('feedCount').textContent=S.feed.length;
   if(cls==='alert'){SFX.alert();$('wrap').classList.remove('flash');void $('wrap').offsetWidth;$('wrap').classList.add('flash')}else if(cls==='pres')SFX.tick();
   $('ticker').textContent=S.feed.slice(-6).map(m=>`${m.src}: ${m.text}`).join('   ◆   ');
 }
 const ROLE=()=>['','당직 장교','부보좌관','대통령'][G.act];
 function me(text){post(ROLE(),'me',text);G.log.push({act:G.act,t:left(),text})}
-function say(who,text,hot){if(S.linkDead){post(who,'noise','[회의선 끊김 — 음성 유실]');return}S.principals[who]=text;post(who,'pres',text);renderConf(hot?who:null)}
+function say(who,text,hot){if(typeof MOBILE!=='undefined')MOBILE.bump('conf');if(S.linkDead){post(who,'noise','[회의선 끊김 — 음성 유실]');return}S.principals[who]=text;post(who,'pres',text);renderConf(hot?who:null)}
 function renderConf(hot){const c=$('conf');const names=Object.keys(S.principals);c.classList.toggle('dead',S.linkDead);if(!names.length){c.innerHTML='<div class="empty">회의선이 열리지 않았습니다.</div>';return}c.innerHTML=names.map(n=>`<div class="who ${n===hot?'hot':''}"><b>${n}</b><span>${S.principals[n]}</span></div>`).join('')}
 
 // ---------- cards ----------
-function card(id,title,ask,opts,dl,onExpire,task){if(S.cards.some(c=>c.id===id))return null;const c={id,title,ask,opts,deadline:S.elapsed+dl,born:S.elapsed,onExpire,done:false,task};S.cards.push(c);SFX.card();renderCards();return c}
+function card(id,title,ask,opts,dl,onExpire,task){if(S.cards.some(c=>c.id===id))return null;const c={id,title,ask,opts,deadline:S.elapsed+dl,born:S.elapsed,onExpire,done:false,task};S.cards.push(c);SFX.card();renderCards();if(typeof MOBILE!=='undefined')MOBILE.bump('dec');return c}
 function resolve(id,k){const c=S.cards.find(x=>x.id===id);if(!c||c.done)return;c.done=true;c.opts.find(o=>o.k===k).go();renderCards()}
 function renderCards(){
   const host=$('decisions');host.innerHTML='';const open=S.cards.filter(c=>!c.done).sort((a,b)=>a.deadline-b.deadline);$('decCount').textContent=open.length;
@@ -107,6 +109,7 @@ function callChannel(k){
       fema:[`${C().n} 광역권 인구 ${C().pop}만. 경보 시 지하·실내 대피 가능 추정 ${Math.round(R(30,45))}%.`,'주 비상관리청 대기. 경보 문안 준비됨. 발령 권한 대통령.',f.evac==='now'?'경보 발령 후 고속도로 전면 정체. 대피 사고 보고 중.':`경보 미발령. ${C().n} 평소와 같음. 언론 문의 폭주.`],
       norad:[`발사 해역 ${sea}. 적외선 특성 ${sc.isSLBM?'해상 발사형':'대형 지상 발사형'}.`,t.id==='sat'?'궤적 재분석: 탄도보다 완만. 궤도 진입 가능성 배제 불가.':'궤적 재분석: 전형적 탄도. 궤도 진입 가능성 없음.',sc.second?`2차 항적 재분석: ${sc.second.real?'독립 항적 확인. 실제 발사.':'1차 부스터 분리체 반사. 허위 항적.'}`:'추가 항적 없음.']}[k];
     post(names[k],k==='dia'||k==='norad'?'intel':'',L[Math.min(n-1,2)],n>=2?'높음':'중간');
+    const ag={dia:'DIA',norad:'NORAD',stratcom:'STRATCOM',state:'STATE'}[k];if(ag){INTEL.agencies[ag].checks++;const r=INTEL.report(ag,S.elapsed/G.TOTAL);post(INTEL.agencies[ag].name+' 재평가','intel',r.text,r.conf);const c=INTEL.consensus();$('tAttrib').textContent=`${ {dprk:'북한',ru:'러시아',unknown:'미상'}[c.best]} ${c.pct}% (기관 편차 ${c.spread})`}
     if(k==='dia'&&n===1)$('tLaunch').textContent=siteN;
   },4000/G.speed);updCalls();
 }
@@ -129,7 +132,7 @@ function resolveGBI(){
   if(g==='salvo'){shots=ng;p=ng===3?.84:.75}else if(g==='delegate'){const s=ng>=2&&sc.rolls.second<.5;p=s?.75:.61;shots=s?2:1}else{p=.61;shots=1}
   if(f.alloc==='b'){G.shots=0;G.intercept='miss';return{shots:0,msg:`0417 교전 없음 — GBI 전량 TRK 0418(${sc.second.city.n})에 배정.`}}
   if(f.alloc==='split'){shots=1;p=.61}
-  G.shots=shots;G.intercept=sc.rolls.r1<p?'hit':'miss';return{shots,msg:`GBI ${shots}발 발사. 요격 판정 약 30초 후.`}
+  G.shots=shots;G.intercept=sc.rolls.r1<p?'hit':'miss';return{shots,msg:`GBI ${shots}발 발사. BOOST 정상. 요격 판정 T+30초. 끝.`}
 }
 // second track: its own engagement, resolved with whatever was left for it
 function resolveSecond(){
@@ -147,31 +150,32 @@ function markKill(src){SFX.good();$('pGmd').textContent='요격 성공';$('pGmd'
 // ---------- reports every act hears ----------
 function commonReports(){
   const t=T(),f=F(),sc=G.sc,city=C(),hit=isHit;
-  at(0,()=>{post('NORAD 미사일경보센터','alert',`OPREP-3 PINNACLE. SBIRS 적외선 탐지. ${sc.site.sea} 상공 탄도 발사 1건. TRK 0417 할당. 발사 지점 미확정.`,'낮음');$('banner').classList.add('on');$('tPhase').textContent='부스트';$('tSens').textContent='SBIRS'});
-  at(.014,()=>post('STRATCOM GOC','',`1차 궤적 해: ${sc.isSLBM?'중거리 이상':'대륙간'} 사거리. 북미 방향. 탄착 추정 ${Math.round(G.TOTAL*.1)}초 후 재산출.`,'낮음'));
-  at(.028,()=>post('우주군 SBIRS','intel',`부스트 특성: ${sc.isSLBM?'고체 소형 2단, 해상 발사형':'액체 또는 고체 대형 1단'}. 2단 점화 확인.`,'중간'));
-  at(.055,()=>{post('코브라 데인 레이더','intel','쉐미야 레이더 획득. 궤적 정밀화 시작.','중간');$('tSens').textContent='SBIRS+UEWR'});
+  at(0,()=>{post('NORAD 미사일경보센터','alert',`FLASH. OPREP-3 PINNACLE NUCFLASH. SBIRS 적외선 탐지. 탄도 발사 1건, 해역 ${sc.site.sea}. 항적 TRK 0417 할당. 발사점 미확정, 오차 ±90km. 재보고 60초. 끝.`,'낮음');$('banner').classList.add('on');$('tPhase').textContent='부스트';$('tSens').textContent='SBIRS'});
+  at(.014,()=>post('STRATCOM GOC','',`IMMEDIATE. TRK 0417 1차 궤적 해. 사거리 ${sc.isSLBM?'IRBM 이상':'ICBM급'}. 방위 CONUS. 탄착점 산출 ${Math.round(G.TOTAL*.1)}초 후. 끝.`,'낮음'));
+  at(.028,()=>post('우주군 SBIRS','intel',`부스트 IR 특성: ${sc.isSLBM?'고체 소형 2단, 해상 발사형 추정':'대형 1단, 액체/고체 미판별'}. 2단 점화 확인. 끝.`,'중간'));
+  at(.055,()=>{post('코브라 데인 레이더','intel','COBRA DANE 획득. 항적 품질 양호. 궤적 정밀화 개시. 끝.','중간');$('tSens').textContent='SBIRS+UEWR'});
   at(.08,()=>post('DIA 당직','intel',t.id.startsWith('dprk')?'북한 동해안 이동식 발사대: 최근 36시간 감시 공백.':'북한 동해안 이동식 발사대: 최근 48시간 활동 없음.','중간'));
-  at(.11,()=>{post('STRATCOM GOC','alert',`TRK 0417 탄착 추정: ${city.n} 광역권. 오차 반경 ±60km. TTI ${fmt(left())}.`,'중간');$('tImp').textContent=city.n;$('pTrack').textContent='TRK 0417 · 1발';$('pTrack').className='pill red'});
+  at(.11,()=>{post('STRATCOM GOC','alert',`FLASH. TRK 0417 예상 탄착점: ${city.n} 광역권. CEP ±60km. TTI ${fmt(left())}. 이상 없으면 재보고 없음. 끝.`,'중간');$('tImp').textContent=city.n;$('pTrack').textContent='TRK 0417 · 1발';$('pTrack').className='pill red'});
   at(.125,()=>post('국무부 작전센터','',t.id.startsWith('ru')?'러시아 외무부 핫라인: "우리 발사 아님." 통보 평소보다 4분 지연. 중국 무응답.':'러시아 외무부 핫라인: "우리 발사 아님." 중국 무응답.','낮음'));
-  at(.165,()=>{post('STRATCOM GOC','intel','연소 종료. 중간 단계 진입. 재진입체 1개 분리. 기만체 분석 중.','중간');$('tRv').textContent='1개 분리'});
+  at(.165,()=>{post('STRATCOM GOC','intel','TRK 0417 연소 종료. 중간 단계. RV 1개 분리 확인. 기만체 분석 중. 끝.','중간');$('tRv').textContent='1개 분리'});
+  [[.09,'NORAD'],[.2,'DIA'],[.3,'STRATCOM'],[.42,'STATE'],[.55,'NSA'],[.7,'DIA']].forEach(([p,k])=>at(p+.001,()=>{const r=INTEL.report(k,p);post(INTEL.agencies[k].name+' 평가','intel',r.text,r.conf);const c=INTEL.consensus();$('tAttrib').textContent=`${ {dprk:'북한',ru:'러시아',unknown:'미상'}[c.best]} ${c.pct}% (기관 편차 ${c.spread})`;if(k==='NORAD')$('tLaunch').textContent=`${sc.site.sea} ±${INTEL.launchErr(p)}km`}));
   at(.24,()=>post('NSA','intel',{dprk:'북한 전략군 지휘망 발사 직전 급증 패턴. 분석 완료 지연.','dprk-sub':'북한 해군 신포 기지 통신 패턴 이상. 지상군 조용.','ru-acc':'러 태평양함대 잠수함 1척 긴급 통신 3건. 해독 중.','ru-rogue':'러시아 지휘망 비정상. 총참모부가 현장 부대를 호출 중. 응답 없음.',unknown:'감시 대상 전 국가 통신량 평소 수준. 설명되는 게 없다.',sat:'러시아 우주군 통신 평소 수준. 발사 통보 없음.'}[t.id],'중간'));
   if(sc.second){
     at(.22,()=>{post('NORAD 미사일경보센터','alert',`2차 항적 탐지. TRK 0418. 동일 해역. 실제 발사 여부 분석 중.`,'낮음');$('pTrack').textContent='TRK 0417/0418 · 2발?';S.t2=true});
     at(.33,()=>{post('NORAD 지휘센터','intel',sc.second.real?`TRK 0418 실제 발사 확정. 탄착 추정 ${sc.second.city.n}.`:'TRK 0418 허위 항적 판정. 1차 부스터 분리체 반사. 삭제.','높음');if(!sc.second.real){$('pTrack').textContent='TRK 0417 · 1발';S.t2=false}else{$('pTrack').textContent='TRK 0417/0418 · 2발';S.t2=true}});
   }
-  at(.39,()=>post('STRATCOM GOC','intel','재진입체 단면적 1개. 기만체 없음. 질량 탄두급.','중간'));
+  at(.39,()=>post('STRATCOM GOC','intel','TRK 0417 RV 레이더 단면적 1개. 기만체 무. 질량 추정 탄두급. 끝.','중간'));
   if(t.id==='sat'){
     at(.38,()=>post('NORAD 지휘센터','alert','궤적 재분석: 탄도 프로파일 이탈. 궤도 진입 가능성 60%. 러시아 정찰위성 발사일 수 있음.','중간'));
     at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';if(G.act<3)setTimeout(()=>{if(S.running)endAct()},5000/G.speed)});
   }
   at(.40,()=>{if(f.aegis==='go'&&!hit()&&t.id!=='sat'){G.aegisHit=sc.rolls.aegis<.5;post('7함대','alert',G.aegisHit?'SM-3 요격 성공. TRK 0417 소실. GBI 교전 불요.':'SM-3 요격 실패. 표적 계속. GBI 교전 진행.','높음');if(G.aegisHit){G.intercept='hit';markKill('AEGIS SM-3');$('pGmd').textContent='이지스 성공'}}});
   at(.44,()=>{if(hit()||t.id==='sat')return;const r=resolveGBI();$('pGmd').textContent='GMD 교전';$('pGmd').className='pill on';post('GMD 포트 그릴리','alert',r.msg);gmdStep('launch')});
-  at(.47,()=>{if(t.id==='sat'||G.aegisHit)return;if(G.intercept==='hit'){post('GMD 포트 그릴리','alert','요격 성공. 표적 소실. 잔해 낙하 캐나다 북부.','높음');gmdStep('kill');markKill('GMD')}
+  at(.47,()=>{if(t.id==='sat'||G.aegisHit)return;if(G.intercept==='hit'){post('GMD 포트 그릴리','alert','KILL. TRK 0417 소실 확인. 잔해 낙하 구역 캐나다 북부. 끝.','높음');gmdStep('kill');markKill('GMD')}
     else if(G.shots>0){post('GMD 포트 그릴리','alert',(G.shots>=2?`${G.shots}발 모두 `:'')+'요격 실패. 표적 계속 비행.','높음');gmdStep('miss');$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';say('국방장관','"실패? 뭐가 실패야. 다시 쏴."',true)}});
   at(.52,()=>{if(t.id==='sat')return;
-    if(resolveSecondShot()){const h=G.intercept==='hit2';post('GMD 포트 그릴리','alert',h?'2발째 요격 성공. 창 마지막에서 표적 소실.':'2발째 요격 실패. 교전 창 종료.','높음');if(h){gmdStep('kill');markKill('GMD')}else gmdStep('miss2')}
-    else if(G.intercept==='miss')post('GMD 포트 그릴리','alert','교전 창 종료. 요격 자산 없음.','높음');
+    if(resolveSecondShot()){const h=G.intercept==='hit2';post('GMD 포트 그릴리','alert',h?'KILL. GBI-2 요격 성공. 창 종료 직전 표적 소실. 끝.':'MISS. GBI-2 요격 실패. 교전 창 종료. 잔여 자산 무. 끝.','높음');if(h){gmdStep('kill');markKill('GMD')}else gmdStep('miss2')}
+    else if(G.intercept==='miss')post('GMD 포트 그릴리','alert','TRK 0417 교전 창 종료. 잔여 자산 무. 끝.','높음');
     if(G.intercept==='miss'&&f.evac==='wait'){f.evac='wait-on';post('FEMA 국가감시센터','alert',`대통령 지시 경보 발령. ${city.n} 대피 가능 약 6분.`)}
   });
   if(sc.second){
@@ -185,9 +189,9 @@ function commonReports(){
   at(.80,()=>{if(!hit())post(`${city.n} 경찰국`,'alert',f.evac==='now'||f.evac==='wait-on'?'대피 혼잡 사고 다발. 지하철역 수용 한계.':'시내 평소 통행량. 시민 대부분 상황 인지 못 함.')});
   at(.87,()=>{if(!hit())post('FEMA 국가감시센터','alert',`병원 비상 발령. 전력망 분리 준비. ${city.n} 통신망 과부하.`)});
   at(.905,()=>{if(!hit())say('국방장관','"...이제 할 수 있는 거 없나."',true)});
-  at(.925,()=>{if(!hit())post('NORAD 미사일경보센터','alert','재진입 시작. 고도 100km. 탄착 90초 전.','높음')});
-  at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','탄착 1분 전.')});
-  at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','탄착 15초 전. 전 채널 침묵.');S.linkDead=true;renderConf()}});
+  at(.925,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 재진입. 고도 100km. 탄착 T-90초. 끝.','높음')});
+  at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-60초.')});
+  at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-15초. 전 채널 침묵.');S.linkDead=true;renderConf()}});
   at(.999,()=>{if(!hit()){post('C2BMC','alert','TRK 0417 — 신호 소실.');$('wrap').style.transition='filter 1.2s';$('wrap').style.filter='brightness(6) saturate(0)';setTimeout(()=>{$('wrap').style.filter='brightness(0.15)'},900);setTimeout(()=>{$('wrap').style.filter='';$('wrap').style.transition=''},4000)}});
   at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);setTimeout(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');setTimeout(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())setTimeout(endAct,3500);else endAct()});
   pat(0,()=>post('STRATCOM GOC','alert',`표적 소실 확인. 요격 고도 ${Math.round(R(380,620))}km. 잔해 낙하 예상 구역 산출 중. 2차 발사 감시 강화.`,'높음'));

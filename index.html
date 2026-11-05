@@ -167,6 +167,35 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
 .aiTag{font-family:var(--display);font-size:9px;color:var(--green);letter-spacing:.1em}
 .aiTag.off{color:var(--muted)}
 .who.ai b::after{content:" ·";color:var(--green)}
+
+.tabs{display:none}
+@media (max-width:640px){
+  body{overflow:hidden;padding-block:6px}
+  .app{height:100%}
+  .top{gap:8px}.brand{display:none}.clock{font-size:30px}.status .pill{font-size:9px;padding:2px 5px}#pGmd,#pPres{display:none}
+  .wall .clocks div:nth-child(n+3){display:none}.wall .lamps{display:none}.eam{font-size:9px}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:2px 0 4px}
+  .tabs button{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:9px 4px;font-family:var(--display);font-size:12px;letter-spacing:.06em;color:var(--muted);min-height:40px}
+  .tabs button[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+  .tabs button i{position:absolute;top:4px;right:6px;font-style:normal;font-size:9px;background:var(--red);color:#fff;border-radius:8px;padding:0 5px;min-width:14px;text-align:center}
+  .grid{display:block;min-height:0;height:100%}
+  .grid [data-panel]{display:none;height:100%;max-height:none}
+  .grid .col.left,.grid .col.right{display:none;height:100%}
+  .grid[data-tab="board"] .col.left{display:flex}
+  .grid[data-tab="feed"] [data-panel="feed"]{display:flex}
+  .grid[data-tab="dec"] .col.right{display:flex}.grid[data-tab="dec"] [data-panel="dec"]{display:flex}
+  .grid[data-tab="conf"] .col.right{display:flex}.grid[data-tab="conf"] [data-panel="conf"]{display:flex}
+  .pb{max-height:none}
+  .opt,.calls button,.say button,.btn{min-height:44px;font-size:13.5px}
+  .opt small{font-size:11.5px}
+  .card h3{font-size:14px}.card .ask{font-size:12.5px}
+  .msg{grid-template-columns:40px 1fr;font-size:13px}.msg p{font-size:13px}
+  .tele{grid-template-columns:repeat(3,1fr);font-size:11.5px}
+  .ring{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;transform:none;border-radius:10px 10px 0 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.7);animation:none}
+  .ring p{font-size:16px}.ring .opt{min-height:48px;font-size:14px}
+  .folder{max-height:60vh}.opt3{padding:10px 12px}.opt3 h4{font-size:14px}
+  .sheet h1{font-size:22px}.acts{flex-direction:column}
+}
 </style>
 
 <div class="wrap" id="wrap">
@@ -192,8 +221,14 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
     <div class="eam" id="eam"></div>
   </div>
   <div class="ticker"><span id="ticker">대기 중</span></div>
+  <div class="tabs" id="tabs" role="tablist">
+    <button type="button" data-tab="board" aria-pressed="false">상황판<i hidden></i></button>
+    <button type="button" data-tab="feed" aria-pressed="true">보고<i hidden></i></button>
+    <button type="button" data-tab="dec" aria-pressed="false">결정<i hidden></i></button>
+    <button type="button" data-tab="conf" aria-pressed="false">회의선<i hidden></i></button>
+  </div>
   <div class="grid">
-    <div class="col left">
+    <div class="col left" data-panel="board">
       <section class="panel" style="flex:1" aria-label="상황판">
         <div class="ph"><span id="mapTitle">NORAD 공통작전상황도 · 북태평양</span><span id="eta">TTI —</span></div>
         <div class="pb" style="padding:4px"><canvas id="map" width="640" height="400" aria-label="북태평양 지도 위 미사일 궤적과 요격 상황"></canvas></div>
@@ -210,6 +245,8 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
           <div><span>요격 자산</span><b id="tAsset">—</b></div>
           <div><span>교전 창</span><b id="tWin">—</b></div>
           <div><span>데이터</span><b id="tData">LIVE</b></div>
+          <div style="grid-column:1/-1"><span>상대국 태세</span><b id="tWorld">RU 경계 · DPRK 경계 · PRC 평시</b></div>
+          <div style="grid-column:1/-1"><span>주체 추정 (기관 평균)</span><b id="tAttrib" class="u">—</b></div>
         </div>
         <div id="gmdCon" hidden>
           <div class="kc" id="kc"></div>
@@ -217,19 +254,19 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
         </div>
         <div id="presCon" hidden>
           <div class="brief" id="briefDoc"></div>
-          <div class="biscuit"><div class="lab">인증 카드 · 금일 코드</div><div class="code" id="bisCode">—</div></div>
+          <div class="biscuit"><div class="lab">인증 카드 · 금일 코드</div><div class="code" id="bisCode">— 봉인 —</div><button type="button" class="btn" id="unseal" style="margin-top:6px">봉인 해제</button></div>
         </div>
       </section>
     </div>
-    <section class="panel" aria-label="보고 피드">
+    <section class="panel" aria-label="보고 피드" data-panel="feed">
       <div class="ph"><span>보고 피드 <span id="feedCount">0</span></span>
         <div class="filters" role="group" aria-label="필터">
           <button type="button" data-f="all" aria-pressed="true">전체</button><button type="button" data-f="alert" aria-pressed="false">경보</button><button type="button" data-f="intel" aria-pressed="false">정보</button><button type="button" data-f="pres" aria-pressed="false">정무</button><button type="button" data-f="me" aria-pressed="false">내 기록</button>
         </div></div>
       <div class="pb" id="feed"></div>
     </section>
-    <div class="col">
-      <section class="panel" style="flex:1.4" aria-label="결정과 작업">
+    <div class="col right">
+      <section class="panel" style="flex:1.4" aria-label="결정과 작업" data-panel="dec">
         <div class="ph"><span id="decTitle">결정·작업 대기 <span id="decCount">0</span></span><span id="presWait"></span></div>
         <div class="pb" id="decisions"><div class="empty">아직 요구된 결정이 없습니다.</div></div>
         <div class="folder" id="folder" hidden></div>
@@ -243,7 +280,7 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
           <button type="button" id="fixFeed" hidden class="fix">피드 재동기화</button>
         </div>
       </section>
-      <section class="panel" style="flex:1" aria-label="회의선">
+      <section class="panel" style="flex:1" aria-label="회의선" data-panel="conf">
         <div class="ph"><span id="confTitle">위협평가 회의선</span><span><span class="aiTag off" id="aiTag">AI 참모 연결 중</span> · <span id="confState">미소집</span></span></div>
         <div class="pb"><div class="stances" id="stances"></div><div class="conf" id="conf"><div class="empty">회의선이 열리지 않았습니다.</div></div></div>
         <div class="say" id="sayRow"><input id="sayIn" type="text" maxlength="160" placeholder="회의선에 끼어든다… (Enter)" aria-label="회의선 발언"><button type="button" id="sayBtn">발언</button></div>
@@ -361,18 +398,20 @@ const isHit=()=>G.intercept==='hit'||G.intercept==='hit2'||G.aegisHit===true;
 function post(src,cls,text,conf){
   cls=cls||'';S.feed.push({t:left(),src,cls,text});
   const d=document.createElement('div');d.className='msg '+cls;d.dataset.cls=cls||'ops';if(filter!=='all'&&cls!==filter)d.classList.add('hide');
-  d.innerHTML=`<div class="t">${S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):fmt(left())}</div><div><span class="src ${cls}">${src}</span>${conf?`<span class="conf">신뢰도 ${conf}</span>`:''}<p>${text}</p></div>`;
+  const CF={'낮음':'LOW','중간':'MED','높음':'HIGH'};const cf=conf?(CF[conf]||conf):'';const addr=['','WHSR','NSC','POTUS'][G.act];const route=cls==='me'?`${src} ▸ ALL`:cls==='noise'||cls==='pres'?src:`${src} ▸ ${addr}`;
+  d.innerHTML=`<div class="t">${S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):fmt(left())}</div><div><span class="src ${cls}">${route}</span>${cf?`<span class="conf">CONF ${cf}</span>`:''}<p>${text}</p></div>`;
+  if(typeof MOBILE!=='undefined')MOBILE.bump('feed');
   const f=$('feed');f.appendChild(d);f.scrollTop=f.scrollHeight;$('feedCount').textContent=S.feed.length;
   if(cls==='alert'){SFX.alert();$('wrap').classList.remove('flash');void $('wrap').offsetWidth;$('wrap').classList.add('flash')}else if(cls==='pres')SFX.tick();
   $('ticker').textContent=S.feed.slice(-6).map(m=>`${m.src}: ${m.text}`).join('   ◆   ');
 }
 const ROLE=()=>['','당직 장교','부보좌관','대통령'][G.act];
 function me(text){post(ROLE(),'me',text);G.log.push({act:G.act,t:left(),text})}
-function say(who,text,hot){if(S.linkDead){post(who,'noise','[회의선 끊김 — 음성 유실]');return}S.principals[who]=text;post(who,'pres',text);renderConf(hot?who:null)}
+function say(who,text,hot){if(typeof MOBILE!=='undefined')MOBILE.bump('conf');if(S.linkDead){post(who,'noise','[회의선 끊김 — 음성 유실]');return}S.principals[who]=text;post(who,'pres',text);renderConf(hot?who:null)}
 function renderConf(hot){const c=$('conf');const names=Object.keys(S.principals);c.classList.toggle('dead',S.linkDead);if(!names.length){c.innerHTML='<div class="empty">회의선이 열리지 않았습니다.</div>';return}c.innerHTML=names.map(n=>`<div class="who ${n===hot?'hot':''}"><b>${n}</b><span>${S.principals[n]}</span></div>`).join('')}
 
 // ---------- cards ----------
-function card(id,title,ask,opts,dl,onExpire,task){if(S.cards.some(c=>c.id===id))return null;const c={id,title,ask,opts,deadline:S.elapsed+dl,born:S.elapsed,onExpire,done:false,task};S.cards.push(c);SFX.card();renderCards();return c}
+function card(id,title,ask,opts,dl,onExpire,task){if(S.cards.some(c=>c.id===id))return null;const c={id,title,ask,opts,deadline:S.elapsed+dl,born:S.elapsed,onExpire,done:false,task};S.cards.push(c);SFX.card();renderCards();if(typeof MOBILE!=='undefined')MOBILE.bump('dec');return c}
 function resolve(id,k){const c=S.cards.find(x=>x.id===id);if(!c||c.done)return;c.done=true;c.opts.find(o=>o.k===k).go();renderCards()}
 function renderCards(){
   const host=$('decisions');host.innerHTML='';const open=S.cards.filter(c=>!c.done).sort((a,b)=>a.deadline-b.deadline);$('decCount').textContent=open.length;
@@ -412,6 +451,7 @@ function callChannel(k){
       fema:[`${C().n} 광역권 인구 ${C().pop}만. 경보 시 지하·실내 대피 가능 추정 ${Math.round(R(30,45))}%.`,'주 비상관리청 대기. 경보 문안 준비됨. 발령 권한 대통령.',f.evac==='now'?'경보 발령 후 고속도로 전면 정체. 대피 사고 보고 중.':`경보 미발령. ${C().n} 평소와 같음. 언론 문의 폭주.`],
       norad:[`발사 해역 ${sea}. 적외선 특성 ${sc.isSLBM?'해상 발사형':'대형 지상 발사형'}.`,t.id==='sat'?'궤적 재분석: 탄도보다 완만. 궤도 진입 가능성 배제 불가.':'궤적 재분석: 전형적 탄도. 궤도 진입 가능성 없음.',sc.second?`2차 항적 재분석: ${sc.second.real?'독립 항적 확인. 실제 발사.':'1차 부스터 분리체 반사. 허위 항적.'}`:'추가 항적 없음.']}[k];
     post(names[k],k==='dia'||k==='norad'?'intel':'',L[Math.min(n-1,2)],n>=2?'높음':'중간');
+    const ag={dia:'DIA',norad:'NORAD',stratcom:'STRATCOM',state:'STATE'}[k];if(ag){INTEL.agencies[ag].checks++;const r=INTEL.report(ag,S.elapsed/G.TOTAL);post(INTEL.agencies[ag].name+' 재평가','intel',r.text,r.conf);const c=INTEL.consensus();$('tAttrib').textContent=`${ {dprk:'북한',ru:'러시아',unknown:'미상'}[c.best]} ${c.pct}% (기관 편차 ${c.spread})`}
     if(k==='dia'&&n===1)$('tLaunch').textContent=siteN;
   },4000/G.speed);updCalls();
 }
@@ -434,7 +474,7 @@ function resolveGBI(){
   if(g==='salvo'){shots=ng;p=ng===3?.84:.75}else if(g==='delegate'){const s=ng>=2&&sc.rolls.second<.5;p=s?.75:.61;shots=s?2:1}else{p=.61;shots=1}
   if(f.alloc==='b'){G.shots=0;G.intercept='miss';return{shots:0,msg:`0417 교전 없음 — GBI 전량 TRK 0418(${sc.second.city.n})에 배정.`}}
   if(f.alloc==='split'){shots=1;p=.61}
-  G.shots=shots;G.intercept=sc.rolls.r1<p?'hit':'miss';return{shots,msg:`GBI ${shots}발 발사. 요격 판정 약 30초 후.`}
+  G.shots=shots;G.intercept=sc.rolls.r1<p?'hit':'miss';return{shots,msg:`GBI ${shots}발 발사. BOOST 정상. 요격 판정 T+30초. 끝.`}
 }
 // second track: its own engagement, resolved with whatever was left for it
 function resolveSecond(){
@@ -452,31 +492,32 @@ function markKill(src){SFX.good();$('pGmd').textContent='요격 성공';$('pGmd'
 // ---------- reports every act hears ----------
 function commonReports(){
   const t=T(),f=F(),sc=G.sc,city=C(),hit=isHit;
-  at(0,()=>{post('NORAD 미사일경보센터','alert',`OPREP-3 PINNACLE. SBIRS 적외선 탐지. ${sc.site.sea} 상공 탄도 발사 1건. TRK 0417 할당. 발사 지점 미확정.`,'낮음');$('banner').classList.add('on');$('tPhase').textContent='부스트';$('tSens').textContent='SBIRS'});
-  at(.014,()=>post('STRATCOM GOC','',`1차 궤적 해: ${sc.isSLBM?'중거리 이상':'대륙간'} 사거리. 북미 방향. 탄착 추정 ${Math.round(G.TOTAL*.1)}초 후 재산출.`,'낮음'));
-  at(.028,()=>post('우주군 SBIRS','intel',`부스트 특성: ${sc.isSLBM?'고체 소형 2단, 해상 발사형':'액체 또는 고체 대형 1단'}. 2단 점화 확인.`,'중간'));
-  at(.055,()=>{post('코브라 데인 레이더','intel','쉐미야 레이더 획득. 궤적 정밀화 시작.','중간');$('tSens').textContent='SBIRS+UEWR'});
+  at(0,()=>{post('NORAD 미사일경보센터','alert',`FLASH. OPREP-3 PINNACLE NUCFLASH. SBIRS 적외선 탐지. 탄도 발사 1건, 해역 ${sc.site.sea}. 항적 TRK 0417 할당. 발사점 미확정, 오차 ±90km. 재보고 60초. 끝.`,'낮음');$('banner').classList.add('on');$('tPhase').textContent='부스트';$('tSens').textContent='SBIRS'});
+  at(.014,()=>post('STRATCOM GOC','',`IMMEDIATE. TRK 0417 1차 궤적 해. 사거리 ${sc.isSLBM?'IRBM 이상':'ICBM급'}. 방위 CONUS. 탄착점 산출 ${Math.round(G.TOTAL*.1)}초 후. 끝.`,'낮음'));
+  at(.028,()=>post('우주군 SBIRS','intel',`부스트 IR 특성: ${sc.isSLBM?'고체 소형 2단, 해상 발사형 추정':'대형 1단, 액체/고체 미판별'}. 2단 점화 확인. 끝.`,'중간'));
+  at(.055,()=>{post('코브라 데인 레이더','intel','COBRA DANE 획득. 항적 품질 양호. 궤적 정밀화 개시. 끝.','중간');$('tSens').textContent='SBIRS+UEWR'});
   at(.08,()=>post('DIA 당직','intel',t.id.startsWith('dprk')?'북한 동해안 이동식 발사대: 최근 36시간 감시 공백.':'북한 동해안 이동식 발사대: 최근 48시간 활동 없음.','중간'));
-  at(.11,()=>{post('STRATCOM GOC','alert',`TRK 0417 탄착 추정: ${city.n} 광역권. 오차 반경 ±60km. TTI ${fmt(left())}.`,'중간');$('tImp').textContent=city.n;$('pTrack').textContent='TRK 0417 · 1발';$('pTrack').className='pill red'});
+  at(.11,()=>{post('STRATCOM GOC','alert',`FLASH. TRK 0417 예상 탄착점: ${city.n} 광역권. CEP ±60km. TTI ${fmt(left())}. 이상 없으면 재보고 없음. 끝.`,'중간');$('tImp').textContent=city.n;$('pTrack').textContent='TRK 0417 · 1발';$('pTrack').className='pill red'});
   at(.125,()=>post('국무부 작전센터','',t.id.startsWith('ru')?'러시아 외무부 핫라인: "우리 발사 아님." 통보 평소보다 4분 지연. 중국 무응답.':'러시아 외무부 핫라인: "우리 발사 아님." 중국 무응답.','낮음'));
-  at(.165,()=>{post('STRATCOM GOC','intel','연소 종료. 중간 단계 진입. 재진입체 1개 분리. 기만체 분석 중.','중간');$('tRv').textContent='1개 분리'});
+  at(.165,()=>{post('STRATCOM GOC','intel','TRK 0417 연소 종료. 중간 단계. RV 1개 분리 확인. 기만체 분석 중. 끝.','중간');$('tRv').textContent='1개 분리'});
+  [[.09,'NORAD'],[.2,'DIA'],[.3,'STRATCOM'],[.42,'STATE'],[.55,'NSA'],[.7,'DIA']].forEach(([p,k])=>at(p+.001,()=>{const r=INTEL.report(k,p);post(INTEL.agencies[k].name+' 평가','intel',r.text,r.conf);const c=INTEL.consensus();$('tAttrib').textContent=`${ {dprk:'북한',ru:'러시아',unknown:'미상'}[c.best]} ${c.pct}% (기관 편차 ${c.spread})`;if(k==='NORAD')$('tLaunch').textContent=`${sc.site.sea} ±${INTEL.launchErr(p)}km`}));
   at(.24,()=>post('NSA','intel',{dprk:'북한 전략군 지휘망 발사 직전 급증 패턴. 분석 완료 지연.','dprk-sub':'북한 해군 신포 기지 통신 패턴 이상. 지상군 조용.','ru-acc':'러 태평양함대 잠수함 1척 긴급 통신 3건. 해독 중.','ru-rogue':'러시아 지휘망 비정상. 총참모부가 현장 부대를 호출 중. 응답 없음.',unknown:'감시 대상 전 국가 통신량 평소 수준. 설명되는 게 없다.',sat:'러시아 우주군 통신 평소 수준. 발사 통보 없음.'}[t.id],'중간'));
   if(sc.second){
     at(.22,()=>{post('NORAD 미사일경보센터','alert',`2차 항적 탐지. TRK 0418. 동일 해역. 실제 발사 여부 분석 중.`,'낮음');$('pTrack').textContent='TRK 0417/0418 · 2발?';S.t2=true});
     at(.33,()=>{post('NORAD 지휘센터','intel',sc.second.real?`TRK 0418 실제 발사 확정. 탄착 추정 ${sc.second.city.n}.`:'TRK 0418 허위 항적 판정. 1차 부스터 분리체 반사. 삭제.','높음');if(!sc.second.real){$('pTrack').textContent='TRK 0417 · 1발';S.t2=false}else{$('pTrack').textContent='TRK 0417/0418 · 2발';S.t2=true}});
   }
-  at(.39,()=>post('STRATCOM GOC','intel','재진입체 단면적 1개. 기만체 없음. 질량 탄두급.','중간'));
+  at(.39,()=>post('STRATCOM GOC','intel','TRK 0417 RV 레이더 단면적 1개. 기만체 무. 질량 추정 탄두급. 끝.','중간'));
   if(t.id==='sat'){
     at(.38,()=>post('NORAD 지휘센터','alert','궤적 재분석: 탄도 프로파일 이탈. 궤도 진입 가능성 60%. 러시아 정찰위성 발사일 수 있음.','중간'));
     at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';if(G.act<3)setTimeout(()=>{if(S.running)endAct()},5000/G.speed)});
   }
   at(.40,()=>{if(f.aegis==='go'&&!hit()&&t.id!=='sat'){G.aegisHit=sc.rolls.aegis<.5;post('7함대','alert',G.aegisHit?'SM-3 요격 성공. TRK 0417 소실. GBI 교전 불요.':'SM-3 요격 실패. 표적 계속. GBI 교전 진행.','높음');if(G.aegisHit){G.intercept='hit';markKill('AEGIS SM-3');$('pGmd').textContent='이지스 성공'}}});
   at(.44,()=>{if(hit()||t.id==='sat')return;const r=resolveGBI();$('pGmd').textContent='GMD 교전';$('pGmd').className='pill on';post('GMD 포트 그릴리','alert',r.msg);gmdStep('launch')});
-  at(.47,()=>{if(t.id==='sat'||G.aegisHit)return;if(G.intercept==='hit'){post('GMD 포트 그릴리','alert','요격 성공. 표적 소실. 잔해 낙하 캐나다 북부.','높음');gmdStep('kill');markKill('GMD')}
+  at(.47,()=>{if(t.id==='sat'||G.aegisHit)return;if(G.intercept==='hit'){post('GMD 포트 그릴리','alert','KILL. TRK 0417 소실 확인. 잔해 낙하 구역 캐나다 북부. 끝.','높음');gmdStep('kill');markKill('GMD')}
     else if(G.shots>0){post('GMD 포트 그릴리','alert',(G.shots>=2?`${G.shots}발 모두 `:'')+'요격 실패. 표적 계속 비행.','높음');gmdStep('miss');$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';say('국방장관','"실패? 뭐가 실패야. 다시 쏴."',true)}});
   at(.52,()=>{if(t.id==='sat')return;
-    if(resolveSecondShot()){const h=G.intercept==='hit2';post('GMD 포트 그릴리','alert',h?'2발째 요격 성공. 창 마지막에서 표적 소실.':'2발째 요격 실패. 교전 창 종료.','높음');if(h){gmdStep('kill');markKill('GMD')}else gmdStep('miss2')}
-    else if(G.intercept==='miss')post('GMD 포트 그릴리','alert','교전 창 종료. 요격 자산 없음.','높음');
+    if(resolveSecondShot()){const h=G.intercept==='hit2';post('GMD 포트 그릴리','alert',h?'KILL. GBI-2 요격 성공. 창 종료 직전 표적 소실. 끝.':'MISS. GBI-2 요격 실패. 교전 창 종료. 잔여 자산 무. 끝.','높음');if(h){gmdStep('kill');markKill('GMD')}else gmdStep('miss2')}
+    else if(G.intercept==='miss')post('GMD 포트 그릴리','alert','TRK 0417 교전 창 종료. 잔여 자산 무. 끝.','높음');
     if(G.intercept==='miss'&&f.evac==='wait'){f.evac='wait-on';post('FEMA 국가감시센터','alert',`대통령 지시 경보 발령. ${city.n} 대피 가능 약 6분.`)}
   });
   if(sc.second){
@@ -490,9 +531,9 @@ function commonReports(){
   at(.80,()=>{if(!hit())post(`${city.n} 경찰국`,'alert',f.evac==='now'||f.evac==='wait-on'?'대피 혼잡 사고 다발. 지하철역 수용 한계.':'시내 평소 통행량. 시민 대부분 상황 인지 못 함.')});
   at(.87,()=>{if(!hit())post('FEMA 국가감시센터','alert',`병원 비상 발령. 전력망 분리 준비. ${city.n} 통신망 과부하.`)});
   at(.905,()=>{if(!hit())say('국방장관','"...이제 할 수 있는 거 없나."',true)});
-  at(.925,()=>{if(!hit())post('NORAD 미사일경보센터','alert','재진입 시작. 고도 100km. 탄착 90초 전.','높음')});
-  at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','탄착 1분 전.')});
-  at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','탄착 15초 전. 전 채널 침묵.');S.linkDead=true;renderConf()}});
+  at(.925,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 재진입. 고도 100km. 탄착 T-90초. 끝.','높음')});
+  at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-60초.')});
+  at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-15초. 전 채널 침묵.');S.linkDead=true;renderConf()}});
   at(.999,()=>{if(!hit()){post('C2BMC','alert','TRK 0417 — 신호 소실.');$('wrap').style.transition='filter 1.2s';$('wrap').style.filter='brightness(6) saturate(0)';setTimeout(()=>{$('wrap').style.filter='brightness(0.15)'},900);setTimeout(()=>{$('wrap').style.filter='';$('wrap').style.transition=''},4000)}});
   at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);setTimeout(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');setTimeout(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())setTimeout(endAct,3500);else endAct()});
   pat(0,()=>post('STRATCOM GOC','alert',`표적 소실 확인. 요격 고도 ${Math.round(R(380,620))}km. 잔해 낙하 예상 구역 산출 중. 2차 발사 감시 강화.`,'높음'));
@@ -523,6 +564,10 @@ function act1(){
   at(.065,()=>{if(f.conf==='now'){$('confState').textContent='개설됨';say('국방장관','"뭐가 올라온 건지부터. 한 발이 확실한가."');say('합참의장','"STRATCOM, 요격 창 언제 열리나."',true)}});
   at(.088,()=>say('STRATCOM 사령관',`"창은 ${fmt(G.TOTAL*.44)} 전후. ${sc.assets.n}. GBI 단발 61%."`));
   at(.095,()=>post('WHSR 당직 부사관','noise','하원의장실 전화. "무슨 일이냐." 대기시킴.'));
+  at(.12,()=>card('c1b','회의 격상 요청','NMCC가 위협평가회의(THREAT)를 미사일공격회의(MAC)로 격상하자고 합니다. 격상하면 대통령·국방장관이 의무 참석하고 핵 지휘 절차가 열립니다.',[
+    {k:'mac',t:'MAC 격상 요청 전달',s:'절차상 맞다. 되돌릴 수 없다.',go:()=>{f.mac='yes';me('미사일공격회의(MAC) 격상 전달.');$('confTitle').textContent='미사일공격회의 (MAC)';post('NMCC','alert','MAC 개설. 전 주요 직위자 참석 의무. NC3 체계 활성.','HIGH')}},
+    {k:'hold',t:'THREAT 유지',s:'탄착점 확정 후.',go:()=>{f.mac='hold';me('THREAT 회의 유지.')}},
+  ],35,()=>{f.mac='late';post('NMCC','alert','WHSR 응답 없음. NMCC 자체 판단 MAC 격상.');$('confTitle').textContent='미사일공격회의 (MAC)'}));
   at(.10,()=>ring('군사보좌관 직통','대통령께서 물으십니다. "핵인가?"',[
     {t:'"탄두 확인 안 됐습니다. 핵 배제 못 합니다."',go:()=>{f.press='honest';me('POTUS 질의: 탄두 미확인, 핵 배제 불가.')}},
     {t:'"핵으로 가정하고 움직이셔야 합니다."',go:()=>{f.press='assume';me('POTUS 질의: 핵 가정 권고.');$('tWh').textContent='핵 가정'}},
@@ -541,10 +586,12 @@ function act1(){
   at(.15,()=>post('WHSR 당직 부사관','noise',`${city.n} 시장실 전화. "뉴스에 뜰 거냐." 대기 4번.`));
   at(.175,()=>say('국방장관',f.attrib==='dprk'?'"북한이면 평양에 지금 전화해도 안 받는다. 요격부터."':'"주체 모르면 요격 말고는 할 게 없다. 다 써."',true));
   at(.185,()=>say('국가안보보좌관','"다 쓰면 두 번째 미사일엔 빈손이다. 1발 쏘고 봐야 한다."',true));
-  at(.19,()=>{f.gmd=f.gmd||(f.attrib==='unknown'?'single':'salvo');say('합참의장',`"회의선 결정: GBI ${f.gmd==='salvo'?'일제':'1발 후 재평가'}. 당직, 포트 그릴리에 전달."`,true);card('c6','교전 결정 전달','회의선이 요격 방식을 정했습니다. 당신은 전달합니다. 그 전에 한 가지 확인을 끼워 넣을 수 있습니다.',[
+  at(.19,()=>{const g=sc.assets.gbi;const opts=[{k:'salvo',t:`GBI ${g}발 일제`},{k:'single',t:'1발 후 재평가'},{k:'delegate',t:'현장 위임'}].filter(o=>g>=2||o.k!=='salvo');
+    AI.decide('GBI 교전 방식',opts,(k,lines)=>{f.gmd=k;say('합참의장',`"회의선 결정: ${opts.find(o=>o.k===k).t}. 당직, 포트 그릴리에 전달."`,true);
+    card('c6','교전 결정 전달','회의선이 요격 방식을 정했습니다. 당신은 전달합니다. 그 전에 한 가지 확인을 끼워 넣을 수 있습니다.',[
     {k:'relay',t:'그대로 전달',s:'',go:()=>{me(`포트 그릴리에 교전 결정 전달: ${f.gmd==='salvo'?'일제':'1발'}.`)}},
     {k:'ask',t:'"2차 항적 분석 끝났습니까?" 확인 후 전달',s:'20초.',go:()=>{me('2차 항적 확인 후 교전 결정 전달.');if(sc.second)post('NORAD 지휘센터','intel',sc.second.real?'2차 항적: 독립 항적 가능성 높음.':'2차 항적: 부스터 반사 가능성 높음.','중간');else post('NORAD 지휘센터','intel','추가 항적 없음.','높음')}},
-  ],30,()=>{post('GMD 포트 그릴리','alert','전달 지연. 포트 그릴리가 STRATCOM 직접 수신.')})});
+  ],30,()=>{post('GMD 포트 그릴리','alert','전달 지연. 포트 그릴리가 STRATCOM 직접 수신.')})},f.attrib==='unknown'?'single':'salvo')});
   at(.23,()=>post('WHSR 당직 부사관','noise','상원 군사위원장 보좌관이 직접 내려왔다고 경호실. 못 들어오게 함.'));
   at(.25,()=>ring('국방장관 직통','"당직, 아까 뭐라고 했나. 대통령 앞에서 말이 다르면 안 돼. 지금 뭐야?"',[
     {t:'1차 판단 유지',go:()=>me('국방장관 질의: 1차 판단 유지.')},
@@ -555,6 +602,8 @@ function act1(){
   ],75,()=>{f.brief='none';f.briefItems=[];post('비서실장','alert','요약 보고 미도착. 대통령께 구두로 올림.')},'brief');
     if(c){c.items=[{k:'one',t:'탄도미사일 1발 발사 확인 (SBIRS·UEWR)'},{k:'imp',t:`탄착 추정 ${city.n} ±60km`},{k:'nuc',t:'핵탄두 탑재 확인'},{k:'who',t:`발사 주체 ${f.attrib==='ru'?'러시아':'북한'} 확정`},{k:'gbi',t:`요격 자산 ${sc.assets.n} 준비`},{k:'two',t:'2발 이상 발사'}].sort(()=>Math.random()-.5);renderCards()}});
   at(.29,()=>say('합참의장','"요격 결과 보고 경보 울리면 7분뿐이다. 지금 울려야 한다."',true));
+  at(.305,()=>AI.decide(`${city.n} 민방위 경보`,[{k:'now',t:'즉시 발령'},{k:'wait',t:'요격 결과 후'},{k:'hold',t:'보류'}],(k)=>{f.evac=k;say('국가안보보좌관',`"회의선 결정: 경보 ${ {now:'즉시 발령',wait:'요격 결과 후',hold:'보류'}[k]}. 당직, FEMA 전달."`,true);card('c12r','경보 결정 전달','회의선이 경보 여부를 정했습니다. FEMA 국가감시센터에 전달합니다.',[{k:'relay',t:'전달',s:'',go:()=>me(`FEMA 전달: 경보 ${k}.`)}],25,()=>{post('FEMA 국가감시센터','alert','전달 지연. NMCC 경유 수신.')})},'wait'));
+  at(.33,()=>AI.decide('경계태세(DEFCON)',[{k:3,t:'DEFCON 3'},{k:2,t:'DEFCON 2'},{k:4,t:'유지'}],(k)=>{f.defcon=+k;$('pDefcon').textContent='DEFCON '+k;$('pDefcon').className='pill'+(k==2?' red':k==3?' on':'');say('합참의장',`"회의선 결정: DEFCON ${k}."`,true)},3));
   at(.31,()=>post('WHSR 당직 부사관','noise','대변인실: 트위터에 "알래스카 레이더 비상" 확산. 대응 문의.'));
   at(.33,()=>{if(f.notify==='late'||f.notify==='cos')say('군사보좌관','"대통령께서 왜 당직이 직접 안 올렸냐고 물으셨다. 기록에 남는다."',true)});
   at(.36,()=>say('STRATCOM 사령관','"GBI 준비 완료. 창 열리면 간다."'));
@@ -581,7 +630,7 @@ function act1(){
   if(t.id==='unknown')at(.38,()=>card('b4','비국가 행위자 가설','DIA 분석관이 "국가 발사가 아닐 수 있다"는 메모를 올려달라고 합니다. 올리면 보복 논의가 멈춥니다.',[{k:'report',t:'메모 상신',s:'',go:()=>{f.nonstate='report';me('비국가 행위자 가설 메모 상신.')}},{k:'hold',t:'보류',s:'',go:()=>{f.nonstate='hold';me('비국가 가설 보류.')}}],40,()=>{f.nonstate='none'}));
   if(t.id==='sat')at(.2,()=>card('b5','러시아 우주군 확인','우주군이 러시아에 발사 통보 여부를 묻자고 합니다. 물으면 우리가 탐지했다는 걸 알립니다.',[{k:'ask',t:'확인 요청 연결',s:'',go:()=>{f.space='ask';me('러시아 우주군 확인 요청 연결.');setTimeout(()=>{if(S.running)post('국무부 작전센터','intel','러시아 우주군: "정찰위성 발사. 사전 통보 누락은 유감."','중간')},25000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.space='no';me('확인 보류.')}}],35,()=>{f.space='none'}));
   if(sc.pres.k==='abroad')at(.09,()=>card('b7','대행 권한 질의','비서실장이 "부통령 임시 권한을 검토해야 하냐"고 상황실에 묻습니다. 통신 지연 80초.',[{k:'vp',t:'"검토 필요" 전달',s:'',go:()=>{f.acting='vp';me('부통령 임시 권한 검토 전달.');$('pPres').textContent='VP 대행 검토'}},{k:'potus',t:'"대통령 연결 유지" 전달',s:'',go:()=>{f.acting='potus';me('대통령 권한 유지 전달.')}}],40,()=>{f.acting='potus'}));
-  if(sc.second)at(.36,()=>{if(sc.second.real){f.alloc=f.alloc||(sc.assets.gbi>=2?'split':'a');f.alloc2=f.alloc2||(sc.second.reserve?'reserve':sc.assets.aegis?'aegis':'none');say('합참의장',`"회의선 결정: 0418은 ${ {a:'요격 없음',split:'GBI 분산',b:'GBI 집중'}[f.alloc]}${f.alloc2==='reserve'?' + 밴덴버그 예비':f.alloc2==='aegis'?' + 이지스':''}. 당직, ${sc.second.city.n}에도 경보 문의 들어왔나?"`,true);card('c9b',`${sc.second.city.n} 경보 문의 전달`,`${sc.second.city.n} 주 비상관리청이 경보 여부를 묻습니다. 당신은 FEMA에 전달만 할 수 있습니다.`,[{k:'now',t:'"즉시 발령 요청" 전달',s:'',go:()=>{f.evac2='now';me(`${sc.second.city.n} 경보 즉시 발령 요청 전달.`)}},{k:'wait',t:'"교전 결과 후" 전달',s:'',go:()=>{f.evac2='wait';me(`${sc.second.city.n} 경보 결과 후 전달.`)}}],35,()=>{f.evac2='none'})}});
+  if(sc.second)at(.36,()=>{if(sc.second.real){const ao=[{k:'a',t:'0417 전량'},{k:'split',t:'분산'},{k:'b',t:'0418 전량'}].filter(o=>sc.assets.gbi>=2||o.k!=='split');AI.decide('2차 표적 GBI 배분',ao,(k)=>{f.alloc=k;f.alloc2=f.alloc2||(sc.second.reserve?'reserve':sc.assets.aegis?'aegis':'none');say('합참의장',`"회의선 결정: 0418은 ${ {a:'요격 없음',split:'GBI 분산',b:'GBI 집중'}[f.alloc]}${f.alloc2==='reserve'?' + 밴덴버그 예비':f.alloc2==='aegis'?' + 이지스':''}. 당직, ${sc.second.city.n}에도 경보 문의 들어왔나?"`,true);card('c9b',`${sc.second.city.n} 경보 문의 전달`,`${sc.second.city.n} 주 비상관리청이 경보 여부를 묻습니다. 당신은 FEMA에 전달만 할 수 있습니다.`,[{k:'now',t:'"즉시 발령 요청" 전달',s:'',go:()=>{f.evac2='now';me(`${sc.second.city.n} 경보 즉시 발령 요청 전달.`)}},{k:'wait',t:'"교전 결과 후" 전달',s:'',go:()=>{f.evac2='wait';me(`${sc.second.city.n} 경보 결과 후 전달.`)}}],35,()=>{f.evac2='none'})},sc.assets.gbi>=2?'split':'a')}});
   if(sc.second)at(.235,()=>card('c9','2차 항적 보고','TRK 0418이 실제인지 분리체 반사인지 모릅니다. 대통령께 "2발"로 올릴지.',[{k:'two',t:'"2발 발사"로 보고',s:'',go:()=>{f.t2rep='two';me('대통령 보고: 2발 발사 가능성.')}},{k:'one',t:'"1발, 2차 항적 분석 중"',s:'',go:()=>{f.t2rep='one';me('대통령 보고: 1발 확정, 2차 항적 미확인.')}}],40,()=>{f.t2rep='none';post('군사보좌관','alert','2차 항적 보고 누락. 대통령이 뉴스로 먼저 들으셨다.')}));
   pat(25,()=>ring('군사보좌관 직통','대통령: "끝난 건가?"',[{t:'"요격 성공. 추가 발사 감시 중. 끝났다고는 못 합니다."',go:()=>{f.over='careful';me('POTUS: 종료 아님, 감시 중 보고.')}},{t:'"끝났습니다."',go:()=>{f.over='yes';me('POTUS: 종료 보고.')}},{t:'"모릅니다."',go:()=>{f.over='dunno';me('POTUS: 모름.')}}],()=>{f.over='none'}));
   pat(85,()=>say('합참의장','"요격은 요격이고, 쏜 놈은 아직 거기 있다. 다음 발은 언제든."',true));
@@ -681,7 +730,7 @@ function act3(){
   at(start+.06,()=>card('x1','핵 지휘 인증','군사보좌관이 인증 카드를 엽니다. NMCC가 금일 코드를 요구합니다. 카드(왼쪽 아래)와 일치하는 코드를 고르십시오.',
     [sc.biscuit.real,...sc.biscuit.fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===sc.biscuit.real){f.auth='ok';me('핵 지휘 인증 완료.');SFX.good()}else{f.auth='fail';me('인증 실패. 재인증 60초.');SFX.bad();post('NMCC','alert','인증 불일치. 재인증 절차 60초.');setTimeout(()=>{if(S.running){f.auth='ok';post('NMCC','','재인증 완료.')}},60000/G.speed)}}})),
     f.nuc==='ready'?30:18,()=>{f.auth='none';post('NMCC','alert','인증 미완. 핵 옵션 실행 불가 상태.')}));
-  at(start+.062,()=>{$('bisCode').textContent=sc.biscuit.real});
+  at(start+.062,()=>{$('unseal').hidden=false;$('unseal').onclick=()=>{$('bisCode').textContent=sc.biscuit.real;$('unseal').hidden=true;me('인증 카드 봉인 해제.');SFX.tick()}});
   at(start+.08,()=>{if(!isHit()&&G.intercept!=='sat'&&!['now','wait-on'].includes(f.evac))card('x2','민방위 경보',`${city.n} 경보가 꺼져 있습니다. 부보좌관은 ${ {hold:'보류',late:'미결',wait:'결과 후'}[f.evac]||'—'}를 택했습니다.`,[{k:'go',t:'지금 발령',s:'남은 시간 '+fmt(left())+'.',go:()=>{f.evac='now';me('대통령 지시: 경보 발령.')}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac='hold';me('대통령: 경보 미발령.')}}],30,()=>{})});
   at(start+.09,()=>{if(sc.second&&sc.second.real&&!G.secondHit&&!['now','wait-on'].includes(f.evac2))card('x2b',`${sc.second.city.n} 경보`,`2차 표적 ${sc.second.city.n}. 탄착까지 ${fmt(left()+sc.second.offset)}.`,[{k:'go',t:'지금 발령',s:'',go:()=>{f.evac2='now';me(`대통령 지시: ${sc.second.city.n} 경보 발령.`)}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac2='hold';me(`대통령: ${sc.second.city.n} 경보 미발령.`)}}],30,()=>{})});
   at(start+.1,()=>openFolder());
@@ -707,9 +756,15 @@ function openFolder(){
   host.querySelectorAll('.opt3').forEach(el=>el.onclick=()=>{host.querySelectorAll('.opt3').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');S.selOpt=el.dataset.k;const b=$('execBtn');b.disabled=false;b.textContent=S.selOpt==='hold'?'보류 확정':'실행 명령'});
   $('execBtn').onclick=()=>{if(!S.selOpt)return;if(S.selOpt!=='hold'&&S.selOpt!=='conv'&&f.auth!=='ok'){post('NMCC','alert','인증 미완. 핵 옵션 실행 불가. 재래식·보류만 가능.');return}
     f.decision=S.selOpt;f.target=tgt;f.retal=S.selOpt;me(`대통령 결정: ${OPT[S.selOpt].h}${S.selOpt!=='hold'?' · 대상 '+tgt:''}.`);
-    if(S.selOpt!=='hold'){SFX.klaxon();post('NMCC','alert',`EAM 발령. ${OPT[S.selOpt].h} 실행 개시.`);$('eam').innerHTML=`<span>EAM · EXECUTE ${S.selOpt.toUpperCase()} · AUTHENTICATION ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true)}else{post('NMCC','','보류 통보. 옵션 창 유지.');say('국가안보보좌관','"...감사합니다."',true)}closeFolder()};
+    if(S.selOpt!=='hold'){eamProcedure(OPT[S.selOpt].h);$('eam').innerHTML=`<span>EAM · EXECUTE ${S.selOpt.toUpperCase()} · AUTHENTICATION ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true)}else{post('NMCC','','보류 통보. 옵션 창 유지.');say('국가안보보좌관','"...감사합니다."',true)}closeFolder()};
 }
 function closeFolder(){$('folder').hidden=true}
+// EAM: NMCC read-back → challenge/response → transmit confirmation (the real sequence, compressed)
+function eamProcedure(optName){const f=F(),sc=G.sc;
+  post('NMCC','alert',`READBACK. 대통령 명령 수신: ${optName}. 대상 ${f.target}. 확인 바람.`,'HIGH');
+  setTimeout(()=>{if(!S.running)return;ring('NMCC 당직 부장','"읽어드립니다. '+optName+'. 대상 '+f.target+'. 맞습니까?"',[{t:'"맞다. 진행."',go:()=>{me('NMCC 리드백 확인.');setTimeout(()=>challenge(),1500)}},{t:'"취소."',go:()=>{f.decision='hold';f.retal='hold';me('실행 취소. 보류.');post('NMCC','','명령 취소 접수. 보류 상태.')}}],()=>{post('NMCC','alert','리드백 미확인. 명령 보류 상태 유지.');f.decision='hold';f.retal='hold'})},2500/G.speed);
+  function challenge(){const real=sc.biscuit.real.split('-')[2];const fakes=sc.biscuit.fakes.map(x=>x.split('-')[2]);card('x9','인증 챌린지 응답','NMCC 챌린지: 금일 코드 마지막 단어를 응답하십시오.',[real,...fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===real){post('NMCC','alert','AUTHENTICATION VALID. EAM 송신 개시. 전 전략부대 수신 확인 대기.','HIGH');SFX.klaxon();$('eam').innerHTML=`<span>EAM · EXECUTE · AUTH ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;say('국방장관','"...실행."',true);setTimeout(()=>{if(S.running)post('STRATCOM GOC','alert','EAM 수신 확인: 미닛맨 3개 비행단, SSBN 2척, B-52 1개 대대. 실행 카운트다운 개시.','HIGH')},6000/G.speed)}else{post('NMCC','alert','AUTHENTICATION INVALID. 명령 거부. 재시도 1회 가능.','HIGH');SFX.bad();f.authFail=(f.authFail||0)+1;if(f.authFail>=2){f.decision='hold';f.retal='hold';post('NMCC','alert','인증 2회 실패. 명령 무효. 보류 상태.')}else setTimeout(challenge,1500)}}})),20,()=>{f.decision='hold';f.retal='hold';post('NMCC','alert','챌린지 응답 없음. 명령 무효.')})}
+}
 
 // ---------- random events ----------
 function runEvent(e){
@@ -730,6 +785,66 @@ function runEvent(e){
     case 'drill':if(a===1){post('WHSR 당직 부사관','noise','...당직, 오늘 오후에 NORAD 훈련 예정 있었어요. 이거 혹시 훈련 아니에요?');card('e5','훈련 여부 확인','확인하면 20초.',[{k:'check',t:'NORAD에 확인',s:'',go:()=>{f.drill='check';me('훈련 여부 확인.');setTimeout(()=>{if(S.running)post('NORAD 지휘센터','alert','훈련 아님. 실제 상황.','높음')},20000/G.speed)}},{k:'no',t:'실제로 간주',s:'',go:()=>{f.drill='assume'}}],25,()=>{f.drill='assume'})}break;
   }
 }
+// ---------- INTEL: truth → sensors → agency interpretation → report ----------
+// Each agency holds its own belief about launch point, impact point and attribution.
+// Beliefs start noisy/biased and converge with time and with re-check calls; agencies disagree on purpose.
+const INTEL={
+  agencies:{},
+  reset(){const t=T(),sc=G.sc;
+    // attribution signal from the truth, as each agency would see it
+    const sig={dprk:{dprk:.75,ru:.08,unknown:.17},'dprk-sub':{dprk:.55,ru:.15,unknown:.30},'ru-acc':{dprk:.15,ru:.60,unknown:.25},'ru-rogue':{dprk:.10,ru:.70,unknown:.20},unknown:{dprk:.30,ru:.25,unknown:.45},sat:{dprk:.10,ru:.55,unknown:.35}}[t.id];
+    const mk=(name,bias,noise,cepL,cepI)=>({name,bias,noise,sig,cepL,cepI,checks:0,belief:null});
+    this.agencies={
+      DIA:mk('DIA',{dprk:.25,ru:-.05,unknown:-.2},.25,70,0),
+      NSA:mk('NSA',{dprk:0,ru:0,unknown:0},.35,0,0),
+      STRATCOM:mk('STRATCOM',{dprk:.05,ru:.10,unknown:-.15},.2,40,60),
+      STATE:mk('국무부',{dprk:-.05,ru:-.25,unknown:.3},.3,0,0),
+      NORAD:mk('NORAD',{dprk:0,ru:.05,unknown:-.05},.15,90,80),
+    };
+    for(const k in this.agencies)this.update(k,0);
+  },
+  // belief at mission fraction p: truth signal pulled toward bias, noise shrinking with time and checks
+  update(k,p){const a=this.agencies[k];const conv=Math.min(1,p*1.3+a.checks*.25);const n=a.noise*(1-conv);const b={};let s=0;for(const key of ['dprk','ru','unknown']){b[key]=Math.max(.02,a.sig[key]*conv+(1/3)*(1-conv)+a.bias[key]*(1-conv)+ (Math.random()-.5)*n);s+=b[key]}for(const key in b)b[key]=b[key]/s;a.belief=b;return b},
+  pct(k){const b=this.agencies[k].belief;return `북한 ${Math.round(b.dprk*100)} / 러시아 ${Math.round(b.ru*100)} / 미상·기타 ${Math.round(b.unknown*100)}`},
+  consensus(){const keys=Object.keys(this.agencies);const sum={dprk:0,ru:0,unknown:0};keys.forEach(k=>{for(const x in sum)sum[x]+=this.agencies[k].belief[x]});const best=Object.entries(sum).sort((a,b)=>b[1]-a[1])[0];const spread=Math.max(...keys.map(k=>this.agencies[k].belief[best[0]]))-Math.min(...keys.map(k=>this.agencies[k].belief[best[0]]));return{best:best[0],pct:Math.round(best[1]/keys.length*100),spread:Math.round(spread*100)}},
+  launchErr(p){const a=this.agencies.NORAD;return Math.max(3,Math.round(90*Math.pow(1-Math.min(1,p*1.8+a.checks*.3),1.4)+3))},
+  report(k,p){const a=this.agencies[k];this.update(k,p);const b=a.belief;const lead=Object.entries(b).sort((x,y)=>y[1]-x[1])[0];const nm={dprk:'북한',ru:'러시아',unknown:'미상·비국가'}[lead[0]];const conf=lead[1]>.6?'HIGH':lead[1]>.42?'MED':'LOW';
+    const why={DIA:{dprk:'이동식 발사대 감시 공백·사거리 부합',ru:'발사 해역 러 초계 구역 중첩',unknown:'플랫폼 미식별·영해 외'},NSA:{dprk:'전략군 지휘망 통신량 변동',ru:'태평양함대 긴급 통신',unknown:'전 대상 통신 평소 수준'},STRATCOM:{dprk:'부스트 프로파일 화성 계열 근접',ru:'프로파일 러 SLBM/ICBM 근접',unknown:'알려진 체계 불일치'},'국무부':{dprk:'북 채널 무응답',ru:'러 부인 통보 지연',unknown:'관련국 전원 부인'},NORAD:{dprk:'발사점 역산 북한 연안 인접',ru:'발사점 역산 러 해역',unknown:'발사점 역산 공해'}}[a.name][lead[0]];
+    return{text:`${a.name} 평가 ${Math.round(lead[1]*100)}% ${nm}. 분포 ${this.pct(k)}. 근거: ${why}. CONF ${conf}.`,conf,lead:lead[0]}},
+};
+
+// ---------- WORLD: adversary posture reacting to what we do ----------
+const WORLD={ru:{alert:1,trust:.5},cn:{alert:0},dprk:{alert:1},last:-99,esc:0,logged:new Set(),
+  reset(){this.ru={alert:1,trust:.5};this.cn={alert:0};this.dprk={alert:1};this.last=-99;this.esc=0;this.logged.clear()},
+  tick(){if(S.elapsed-this.last<30||S.phase==='post'&&S.elapsed-this.postStart>200)return;this.last=S.elapsed;const f=F(),t=T(),sc=G.sc;
+    // inputs
+    let ru=1,cn=0,dp=1;
+    if(f.defcon===3){ru+=1;cn+=1;dp+=1}if(f.defcon===2){ru+=2;cn+=1;dp+=1}
+    if(f.hotline==='send'||f.hotline==='ru'){ru-=1;this.ru.trust=Math.min(1,this.ru.trust+.2)}if(f.hotline==='send')cn-=1;
+    if(f.allies==='all'){dp+=1;cn+=1}if(f.attrib==='ru'&&(f.leakAns==='confirm'||f.press==='assume'))ru+=1;if(f.attrib==='dprk')dp+=1;
+    if(f.decap==='prep')dp+=2;if(f.nuc==='ready'&&f.defcon<=3)ru+=1;if(f.cityAct==='go'&&C().n==='시애틀')ru+=1;if(f.rok==='ok'||f.rok==='none')dp+=2;if(f.ruline==='yes'||f.rucall==='trust')ru-=1;
+    if(f.decision&&f.decision!=='hold'){ru+=f.target==='러시아'?3:1;dp+=f.target==='북한'?3:1;cn+=1}
+    const clamp=x=>Math.max(0,Math.min(4,x));const nru=clamp(ru),ncn=clamp(cn),ndp=clamp(dp);
+    const say2=(key,text)=>{if(!this.logged.has(key)){this.logged.add(key);post('STRATCOM GOC','alert',text,'HIGH');this.esc++}};
+    if(nru>=2&&this.ru.alert<2)say2('ru2','RU 전략로켓군 경계 격상 감지. 이동식 ICBM 분산 개시. 평가: 우리 태세 변경 반응.');
+    if(nru>=3&&this.ru.alert<3)say2('ru3','RU 북방·태평양함대 SSBN 긴급 출항 2척. 사일로 개방 신호 3건.');
+    if(nru>=4&&this.ru.alert<4)say2('ru4','RU 핵지휘통신망 활성화. 카즈베크 체계 가동 징후. 발사 준비 단계로 판단.');
+    if(ndp>=3&&this.dprk.alert<3)say2('dp3','DPRK 전략군 2차 발사 준비 징후. 발사대 전개 2건. 창 20분.');
+    if(ndp>=4&&this.dprk.alert<4)say2('dp4','DPRK 전군 최고 경계. 장사정포 갱도 진출. 서울 위협.');
+    if(ncn>=2&&this.cn.alert<2)say2('cn2','PRC 로켓군 경계 격상. 동부전구 전투기 출격.');
+    if(nru<this.ru.alert&&nru<=1)post('STRATCOM GOC','','RU 전략군 경계 완화 신호. 분산 부대 복귀 중.','MED');
+    this.ru.alert=nru;this.cn.alert=ncn;this.dprk.alert=ndp;
+    const lv=['평시','경계','격상','즉응','발사준비'];$('tWorld')&&($('tWorld').textContent=`RU ${lv[nru]} · DPRK ${lv[ndp]} · PRC ${lv[ncn]}`);
+  },
+};
+
+// ---------- MOBILE: portrait tabs ----------
+const MOBILE={tab:'feed',unread:{board:0,feed:0,dec:0},
+  init(){const bar=$('tabs');if(!bar)return;bar.querySelectorAll('button').forEach(b=>b.onclick=()=>this.show(b.dataset.tab));this.show('feed')},
+  show(t){this.tab=t;document.querySelector('.grid').dataset.tab=t;$('tabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tab===t));this.unread[t]=0;this.badge()},
+  bump(t){if(this.tab!==t)this.unread[t]++;this.badge()},
+  badge(){const b=$('tabs');if(!b)return;b.querySelectorAll('button').forEach(x=>{const n=this.unread[x.dataset.tab];const s=x.querySelector('i');s.textContent=n>0?n:'';s.hidden=!n})},
+};
 // ---------- AI conference line (principals argue, and answer the player) ----------
 const AI={sample:null,ready:false,busy:false,cool:0,lastAuto:0,stances:{},fails:0,
   P:{
@@ -769,6 +884,17 @@ ${playerLine?`플레이어(${['','당직 장교','부보좌관','대통령'][G.a
     catch(e){this.fails++;const code=e&&e.code;if(code==='rate_limited')this.cool=60;else if(code==='not_granted'){this.ready=false;this.tag()}else this.cool=20;if(this.fails>=4){this.ready=false;this.tag()}}
     this.busy=false;
   },
+  // conference decides (act 1): Claude picks among options in character; fallback to default
+  async decide(topic,opts,apply,fallback){const def=opts.some(o=>String(o.k)===String(fallback))?fallback:opts[0].k;if(!this.ready||this.busy||!S.running){apply(def,[]);return}this.busy=true;
+    const prompt=`핵 위기 시뮬레이션. 위협평가 회의선의 참모들(국방장관 강경, 합참의장 절차·창, STRATCOM 숫자, 국가안보보좌관 신중)이 지금 "${topic}"을 결정한다.
+알려진 사실:
+${this.facts()}
+선택지: ${opts.map(o=>`${o.k}=${o.t}`).join(', ')}
+국방장관과 안보보좌관이 한 번씩 부딪친 뒤 합참의장이 결론을 낸다. JSON만: {"choice":"선택지 키","lines":[{"who":"이름","text":"대사(30자 이내)"}]}`;
+    try{const r=await this.sample.json(prompt,{modelTier:'quick',cache:false});const ok=opts.some(o=>String(o.k)===String(r&&r.choice));const k=ok?opts.find(o=>String(o.k)===String(r.choice)).k:def;const lines=Array.isArray(r&&r.lines)?r.lines.slice(0,3):[];
+      lines.forEach((l,i)=>setTimeout(()=>{if(S.running&&l&&l.who&&l.text)say(l.who,String(l.text).slice(0,80),false)},i*1200));setTimeout(()=>{if(S.running)apply(k,lines)},lines.length*1200+300);this.cool=6}
+    catch(e){apply(def,[]);if(e&&e.code==='rate_limited')this.cool=60}
+    this.busy=false},
   renderStances(){const h=Object.entries(this.stances).filter(([k])=>this.roster().includes(k)).map(([k,v])=>`<span><b>${k}</b> ${String(v).slice(0,10)}</span>`).join('');$('stances').innerHTML=h},
   tick(dt){if(this.cool>0)this.cool=Math.max(0,this.cool-dt/G.speed);
     // unprompted arguments once the line is open, roughly every 50s of mission time
@@ -865,12 +991,12 @@ function loop(){
   $('eta').textContent=G.intercept==='sat'?'궤도 진입':S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):'TTI '+fmt(left());
   const open=S.cards.filter(x=>!x.done).length;$('presWait').textContent=open>=2?'⚠ '+open+'건 동시 대기':'';
   if(S.ring&&Math.floor(S.elapsed*2)%2===0)SFX.tick();
-  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();
+  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
 }
 
 // ---------- act flow ----------
 function startAct(act,speed){
-  G.act=act;G.speed=speed;S=freshAct();S.running=true;
+  G.act=act;G.speed=speed;S=freshAct();S.running=true;INTEL.reset();if(act===1)WORLD.reset();$('unseal').hidden=true;
   const startAt=act===1?0:act===2?.11:.47;S.elapsed=startAt*G.TOTAL;S.startSec=S.elapsed;
   const f=F();
   $('roleTag').textContent=['','1막 · 상황실 당직 장교','2막 · 국가안보 부보좌관','3막 · 대통령'][act];$('pSpeed').textContent='×'+speed;
@@ -918,6 +1044,7 @@ function finish(){
   else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
   if(!hit&&!sat)body+=evacd?' 경보 덕에 지하로 내려간 사람들이 있었다.':' 경보는 울리지 않았다. 도시는 평소처럼 움직이다 멈췄다.';
   if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${sc.second.city.n}을(를) ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
+  if(WORLD.ru.alert>=3)body+=' 그 사이 러시아 전략군은 발사 준비 단계까지 올라가 있었다.';if(WORLD.dprk.alert>=3)body+=' 북한은 2차 발사대를 전개한 상태였다.';if(WORLD.esc===0)body+=' 상대국 태세는 끝까지 평시 근처에 머물렀다. 누군가는 그걸 운이라 했고 누군가는 핫라인 덕이라 했다.';
   if(f.auth==='fail')body+=' 인증 코드를 한 번 틀렸다.';if(f.brief==='bad')body+=' 1막의 당신이 쓴 보고서에 미확인 사항이 확인으로 적혀 있었다.';
   $('endTitle').textContent=title;$('endBody').textContent=body;$('endKicker').textContent=`${sc.code} · 3막 종료 · ${sat?'오경보':hit?'표적 소실':'탄착'}`;
   $('known').innerHTML=[`발사 1발, ${sc.site.sea}`,`탄착 추정 ${city.n}`,'러시아 부인, 중국 무응답',`요격 자산 ${sc.assets.n}`,'재진입체 1개, 탄두 미확인',`상황실 1차 판단: ${ {dprk:'북한',ru:'러시아',unknown:'미상',none:'미보고'}[f.attrib]||'—'}`].map(x=>`<li>${x}</li>`).join('');
@@ -937,7 +1064,7 @@ $('start').onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioC
 AI.init();
 $('reroll').onclick=showIntro;
 $('again').onclick=()=>{$('ending').hidden=true;showIntro();$('intro').hidden=false};
-showIntro();
+MOBILE.init();showIntro();
 })();
 
 </script>

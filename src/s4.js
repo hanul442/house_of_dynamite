@@ -37,6 +37,17 @@ ${playerLine?`플레이어(${['','당직 장교','부보좌관','대통령'][G.a
     catch(e){this.fails++;const code=e&&e.code;if(code==='rate_limited')this.cool=60;else if(code==='not_granted'){this.ready=false;this.tag()}else this.cool=20;if(this.fails>=4){this.ready=false;this.tag()}}
     this.busy=false;
   },
+  // conference decides (act 1): Claude picks among options in character; fallback to default
+  async decide(topic,opts,apply,fallback){const def=opts.some(o=>String(o.k)===String(fallback))?fallback:opts[0].k;if(!this.ready||this.busy||!S.running){apply(def,[]);return}this.busy=true;
+    const prompt=`핵 위기 시뮬레이션. 위협평가 회의선의 참모들(국방장관 강경, 합참의장 절차·창, STRATCOM 숫자, 국가안보보좌관 신중)이 지금 "${topic}"을 결정한다.
+알려진 사실:
+${this.facts()}
+선택지: ${opts.map(o=>`${o.k}=${o.t}`).join(', ')}
+국방장관과 안보보좌관이 한 번씩 부딪친 뒤 합참의장이 결론을 낸다. JSON만: {"choice":"선택지 키","lines":[{"who":"이름","text":"대사(30자 이내)"}]}`;
+    try{const r=await this.sample.json(prompt,{modelTier:'quick',cache:false});const ok=opts.some(o=>String(o.k)===String(r&&r.choice));const k=ok?opts.find(o=>String(o.k)===String(r.choice)).k:def;const lines=Array.isArray(r&&r.lines)?r.lines.slice(0,3):[];
+      lines.forEach((l,i)=>setTimeout(()=>{if(S.running&&l&&l.who&&l.text)say(l.who,String(l.text).slice(0,80),false)},i*1200));setTimeout(()=>{if(S.running)apply(k,lines)},lines.length*1200+300);this.cool=6}
+    catch(e){apply(def,[]);if(e&&e.code==='rate_limited')this.cool=60}
+    this.busy=false},
   renderStances(){const h=Object.entries(this.stances).filter(([k])=>this.roster().includes(k)).map(([k,v])=>`<span><b>${k}</b> ${String(v).slice(0,10)}</span>`).join('');$('stances').innerHTML=h},
   tick(dt){if(this.cool>0)this.cool=Math.max(0,this.cool-dt/G.speed);
     // unprompted arguments once the line is open, roughly every 50s of mission time
