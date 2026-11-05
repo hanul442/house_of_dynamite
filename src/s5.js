@@ -38,13 +38,13 @@ const WORLD={ru:{alert:1,trust:.5},cn:{alert:0},dprk:{alert:1},last:-99,esc:0,lo
     if(f.decap==='prep')dp+=2;if(f.nuc==='ready'&&f.defcon<=3)ru+=1;if(f.cityAct==='go'&&C().n==='시애틀')ru+=1;if(f.rok==='ok'||f.rok==='none')dp+=2;if(f.ruline==='yes'||f.rucall==='trust')ru-=1;
     if(f.decision&&f.decision!=='hold'){ru+=f.target==='러시아'?3:1;dp+=f.target==='북한'?3:1;cn+=1}
     const clamp=x=>Math.max(0,Math.min(4,x));const nru=clamp(ru),ncn=clamp(cn),ndp=clamp(dp);
-    const say2=(key,text)=>{if(!this.logged.has(key)){this.logged.add(key);post('STRATCOM GOC','alert',text,'HIGH');this.esc++}};
-    if(nru>=2&&this.ru.alert<2)say2('ru2','RU 전략로켓군 경계 격상 감지. 이동식 ICBM 분산 개시. 평가: 우리 태세 변경 반응.');
-    if(nru>=3&&this.ru.alert<3)say2('ru3','RU 북방·태평양함대 SSBN 긴급 출항 2척. 사일로 개방 신호 3건.');
-    if(nru>=4&&this.ru.alert<4)say2('ru4','RU 핵지휘통신망 활성화. 카즈베크 체계 가동 징후. 발사 준비 단계로 판단.');
-    if(ndp>=3&&this.dprk.alert<3)say2('dp3','DPRK 전략군 2차 발사 준비 징후. 발사대 전개 2건. 창 20분.');
-    if(ndp>=4&&this.dprk.alert<4)say2('dp4','DPRK 전군 최고 경계. 장사정포 갱도 진출. 서울 위협.');
-    if(ncn>=2&&this.cn.alert<2)say2('cn2','PRC 로켓군 경계 격상. 동부전구 전투기 출격.');
+    const say2=(key,text,side,level)=>{if(!this.logged.has(key)){this.logged.add(key);post('STRATCOM GOC','alert',text,'HIGH');this.esc++;EVT.emit('world',{side,level})}};
+    if(nru>=2&&this.ru.alert<2)say2('ru2','RU 전략로켓군 경계 격상 감지. 이동식 ICBM 분산 개시. 평가: 우리 태세 변경 반응.','RU',2);
+    if(nru>=3&&this.ru.alert<3)say2('ru3','RU 북방·태평양함대 SSBN 긴급 출항 2척. 사일로 개방 신호 3건.','RU',3);
+    if(nru>=4&&this.ru.alert<4)say2('ru4','RU 핵지휘통신망 활성화. 카즈베크 체계 가동 징후. 발사 준비 단계로 판단.','RU',4);
+    if(ndp>=3&&this.dprk.alert<3)say2('dp3','DPRK 전략군 2차 발사 준비 징후. 발사대 전개 2건. 창 20분.','DPRK',3);
+    if(ndp>=4&&this.dprk.alert<4)say2('dp4','DPRK 전군 최고 경계. 장사정포 갱도 진출. 서울 위협.','DPRK',4);
+    if(ncn>=2&&this.cn.alert<2)say2('cn2','PRC 로켓군 경계 격상. 동부전구 전투기 출격.','PRC',2);
     if(nru<this.ru.alert&&nru<=1)post('STRATCOM GOC','','RU 전략군 경계 완화 신호. 분산 부대 복귀 중.','MED');
     this.ru.alert=nru;this.cn.alert=ncn;this.dprk.alert=ndp;
     const lv=['평시','경계','격상','즉응','발사준비'];$('tWorld')&&($('tWorld').textContent=`RU ${lv[nru]} · DPRK ${lv[ndp]} · PRC ${lv[ncn]}`);

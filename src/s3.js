@@ -73,7 +73,7 @@ function loop(){
 
 // ---------- act flow ----------
 function startAct(act,speed){
-  G.act=act;G.speed=speed;S=freshAct();S.running=true;INTEL.reset();if(act===1)WORLD.reset();$('unseal').hidden=true;
+  G.act=act;G.speed=speed;S=freshAct();S.running=true;INTEL.reset();if(act===1)WORLD.reset();EVT.recent=[];REACT.fired.clear();CHAIN.fired.clear();$('unseal').hidden=true;
   const startAt=act===1?0:act===2?.11:.47;S.elapsed=startAt*G.TOTAL;S.startSec=S.elapsed;
   const f=F();
   $('roleTag').textContent=['','1막 · 상황실 당직 장교','2막 · 국가안보 부보좌관','3막 · 대통령'][act];$('pSpeed').textContent='×'+speed;
