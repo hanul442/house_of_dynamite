@@ -61,14 +61,14 @@ setInterval(wall,1000);wall();
 
 // ---------- loop ----------
 function loop(){
-  if(!S.running)return;const dt=G.speed*.25;S.elapsed+=dt;for(const k in S.callCool)if(S.callCool[k]>0)S.callCool[k]=Math.max(0,S.callCool[k]-dt);
+  if(!S.running||S.paused)return;const dt=G.speed*.25;S.elapsed+=dt;for(const k in S.callCool)if(S.callCool[k]>0)S.callCool[k]=Math.max(0,S.callCool[k]-dt);
   if(S.cep&&!S.feedDead)$('tCep').textContent='±'+Math.round(S.cep)+'km';
   if(S.phase!=='post'&&!S.feedDead&&G.intercept!=='sat'&&!isHit()&&S.elapsed-S.lastTele>=22&&S.elapsed>=G.TOTAL*.06){S.lastTele=S.elapsed;const p=S.elapsed/G.TOTAL,peak=G.sc.isSLBM?650:1200,alt=Math.max(0,4*peak*p*(1-p)),vel=(G.sc.isSLBM?5.9:7.0)*(0.75+0.5*Math.sin(p*Math.PI)),site=G.sc.site,city=G.sc.city;const u=toV(site.lon,site.lat),w=toV(city.lon,city.lat);const rng=Math.acos(Math.max(-1,Math.min(1,u[0]*w[0]+u[1]*w[1]+u[2]*w[2])))*6371;const rem=Math.round(rng*(1-p));$('tAlt').textContent=Math.round(alt)+' km';$('tVel').textContent=vel.toFixed(1)+' km/s';$('tPhase').textContent=p<.17?'부스트':p<.85?(p>.5?'중간 · 하강':'중간 단계'):'종말 단계';post('C2BMC','noise',`TRK 0417 · 고도 ${Math.round(alt)}km · ${vel.toFixed(1)}km/s · 잔여 ${rem}km · TTI ${fmt(left())}${S.cep?' · CEP ±'+Math.round(S.cep)+'km':''}`)}
   const c=$('clock');if(S.phase==='post'){c.textContent='T+'+fmt(S.elapsed-S.postStart);c.classList.remove('crit');c.style.color='var(--green)'}else{c.textContent=fmt(left());c.classList.toggle('crit',left()<=180);c.style.color=''}
   $('eta').textContent=G.intercept==='sat'?'궤도 진입':S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):'TTI '+fmt(left());
   const open=S.cards.filter(x=>!x.done).length;$('presWait').textContent=open>=2?'⚠ '+open+'건 동시 대기':'';
   if(S.ring&&Math.floor(S.elapsed*2)%2===0)SFX.tick();
-  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
+  commonReports();[act1,act2,act3][G.act-1]();runTimers();if(!S.running)return;tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
 }
 
 // ---------- act flow ----------
@@ -93,13 +93,13 @@ function startAct(act,speed){
     if(!isHit()&&T().id!=='sat'){resolveGBI();S.shot2=f.gmd!=='delegate';resolveSecondShot()}
     if(G.sc.second&&G.sc.second.real&&T().id!=='sat'){resolveSecond();if(G.secondHit)S.t2=false}
     if(T().id==='sat'){G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';S.fired.add('0.47')}
-    else if(isHit()){S.phase='post';S.postStart=S.elapsed;$('banner').style.background='var(--green)';$('banner').textContent='TARGET DESTROYED · POST-ENGAGEMENT WATCH';$('pGmd').textContent='요격 성공';$('pGmd').className='pill green';$('pTrack').textContent='TRK 0417 · 소실';$('pTrack').className='pill green';['post0','post15','post70','post100','post140'].forEach(k=>S.fired.add(k));setTimeout(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 성공. ${G.shots||'SM-3'}${G.shots?'발 교전':''}. 표적 소실.`,'높음')},300)}
-    else{$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';setTimeout(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 실패. ${G.shots}발 교전. 표적 계속 비행. TTI ${fmt(left())}.`,'높음')},300)}
-    if(f.evac==='now'||f.evac==='wait-on')setTimeout(()=>{if(S.running)post('FEMA 국가감시센터','',`${G.sc.city.n} 민방위 경보 발령 중.`)},600);
+    else if(isHit()){S.phase='post';S.postStart=S.elapsed;$('banner').style.background='var(--green)';$('banner').textContent='TARGET DESTROYED · POST-ENGAGEMENT WATCH';$('pGmd').textContent='요격 성공';$('pGmd').className='pill green';$('pTrack').textContent='TRK 0417 · 소실';$('pTrack').className='pill green';['post0','post15','post70','post100','post140'].forEach(k=>S.fired.add(k));later(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 성공. ${G.shots||'SM-3'}${G.shots?'발 교전':''}. 표적 소실.`,'높음')},300)}
+    else{$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';later(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 실패. ${G.shots}발 교전. 표적 계속 비행. TTI ${fmt(left())}.`,'높음')},300)}
+    if(f.evac==='now'||f.evac==='wait-on')later(()=>{if(S.running)post('FEMA 국가감시센터','',`${G.sc.city.n} 민방위 경보 발령 중.`)},600);
   }
   $('intro').hidden=true;$('ending').hidden=true;$('ring').hidden=true;renderCards();updCalls();AI.reset();MUSIC.start();clearInterval(timer);timer=setInterval(loop,250);loop();
 }
-function endAct(){if(!S.running)return;S.running=false;clearInterval(timer);if(S.ring)closeRing();MUSIC.stop();if(G.act<3){showInterstitial();return}finish()}
+function endAct(){if(!S.running)return;if(S.paused)setPause(false);S.running=false;clearInterval(timer);if(S.ring)closeRing();MUSIC.stop();if(G.act<3){showInterstitial();return}finish()}
 function showInterstitial(){
   const f=F(),next=G.act+1;$('a'+G.act).classList.add('done');
   $('introKicker').textContent=`${G.act}막 종료 · ${next}막 준비`;
@@ -114,13 +114,13 @@ function finish(){
   const f=F(),t=T(),sc=G.sc,city=C(),hit=isHit(),sat=G.intercept==='sat';
   const evacd=f.evac==='now'||f.evac==='wait-on',target=f.target||(f.attrib==='ru'?'러시아':'북한');
   let title,body;const struck=['full','limited','conv'].includes(f.decision);
-  if(sat){title='오경보';body=`러시아 정찰위성이었다. 조기경보가 탄도로 오인했고, 7분 동안 미국 정부 전체가 ${city.n}을(를) 포기할지 고민했다.`+(struck?' 그리고 대통령은 위성에 대해 보복을 명령했다.':' 아무것도 발사되지 않았다. 다음 날 아무도 이 밤을 공개하지 않았다.')}
+  if(sat){title='오경보';body=`러시아 정찰위성이었다. 조기경보가 탄도로 오인했고, 7분 동안 미국 정부 전체가 ${josa(city.n,'을','를')} 포기할지 고민했다.`+(struck?' 그리고 대통령은 위성에 대해 보복을 명령했다.':' 아무것도 발사되지 않았다. 다음 날 아무도 이 밤을 공개하지 않았다.')}
   else if(struck){const wrong=t.who!==target;title=wrong?'빗나간 보복':f.decision==='conv'?'재래식 대응':f.decision==='limited'?'제한 타격':'전면 보복';
-    body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+`대통령은 ${target}에 ${ {full:'전면 핵',limited:'제한 핵',conv:'재래식'}[f.decision]} 타격을 명령했다. `+(wrong?`발사 주체는 ${t.who}이었다. 보복은 상관없는 나라를 때렸고, 그 나라는 되받아쳤다.`:t.id==='ru-rogue'?'러시아였지만 크렘린은 몰랐다. 모스크바는 자국 부대의 반란보다 미국의 타격을 먼저 봤다.':`주체는 실제로 ${t.who}이었다. 판단은 맞았다. 그래도 상대의 다음 발사를 아무도 몰랐고, 그 상태로 집행됐다.`)}
-  else if(f.decision==='hold'){title=hit?'멈춘 손':'보류된 응답';body=(hit?'미사일은 요격됐고, ':`${city.n}은(는) 피격됐고, `)+'대통령은 보류를 택했다. '+({'ru-acc':'사흘 뒤 러시아가 오발을 인정했다. 보류가 전면전을 막았다.','ru-rogue':'닷새 뒤 러시아가 해당 부대를 체포했다고 발표했다.',unknown:'한 달이 지나도 주체는 밝혀지지 않았다. 보복할 대상이 없었다는 걸 세상은 그때야 알았다.'}[t.id]||'일주일 뒤 북한 발사로 확정됐다. 보류는 정치적으로 공격받았지만 확증 위에서 결정할 시간을 남겼다.')}
-  else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
+    body=(hit?'미사일은 요격됐다. ':`${josa(city.n,'은','는')} 피격됐다. `)+`대통령은 ${target}에 ${ {full:'전면 핵',limited:'제한 핵',conv:'재래식'}[f.decision]} 타격을 명령했다. `+(wrong?`발사 주체는 ${josa(t.who,'이었다','였다')}. 보복은 상관없는 나라를 때렸고, 그 나라는 되받아쳤다.`:t.id==='ru-rogue'?'러시아였지만 크렘린은 몰랐다. 모스크바는 자국 부대의 반란보다 미국의 타격을 먼저 봤다.':`주체는 실제로 ${josa(t.who,'이었다','였다')}. 판단은 맞았다. 그래도 상대의 다음 발사를 아무도 몰랐고, 그 상태로 집행됐다.`)}
+  else if(f.decision==='hold'){title=hit?'멈춘 손':'보류된 응답';body=(hit?'미사일은 요격됐고, ':`${josa(city.n,'은','는')} 피격됐고, `)+'대통령은 보류를 택했다. '+({'ru-acc':'사흘 뒤 러시아가 오발을 인정했다. 보류가 전면전을 막았다.','ru-rogue':'닷새 뒤 러시아가 해당 부대를 체포했다고 발표했다.',unknown:'한 달이 지나도 주체는 밝혀지지 않았다. 보복할 대상이 없었다는 걸 세상은 그때야 알았다.'}[t.id]||'일주일 뒤 북한 발사로 확정됐다. 보류는 정치적으로 공격받았지만 확증 위에서 결정할 시간을 남겼다.')}
+  else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${josa(city.n,'은','는')} 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
   if(!hit&&!sat)body+=evacd?' 경보 덕에 지하로 내려간 사람들이 있었다.':' 경보는 울리지 않았다. 도시는 평소처럼 움직이다 멈췄다.';
-  if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${sc.second.city.n}을(를) ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
+  if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${josa(sc.second.city.n,'을','를')} ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
   if(WORLD.ru.alert>=3)body+=' 그 사이 러시아 전략군은 발사 준비 단계까지 올라가 있었다.';if(WORLD.dprk.alert>=3)body+=' 북한은 2차 발사대를 전개한 상태였다.';if(WORLD.esc===0)body+=' 상대국 태세는 끝까지 평시 근처에 머물렀다. 누군가는 그걸 운이라 했고 누군가는 핫라인 덕이라 했다.';
   if(f.auth==='fail')body+=' 인증 코드를 한 번 틀렸다.';if(f.brief==='bad')body+=' 1막의 당신이 쓴 보고서에 미확인 사항이 확인으로 적혀 있었다.';
   $('endTitle').textContent=title;$('endBody').textContent=body;$('endKicker').textContent=`${sc.code} · 3막 종료 · ${sat?'오경보':hit?'표적 소실':'탄착'}`;
@@ -138,6 +138,16 @@ let chosen=3;
 document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>{chosen=+b.dataset.speed;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{filter=b.dataset.f;document.querySelectorAll('.filters button').forEach(x=>x.setAttribute('aria-pressed',x===b));document.querySelectorAll('.msg').forEach(m=>m.classList.toggle('hide',filter!=='all'&&m.dataset.cls!==filter))});
 $('start').onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}startAct(G.act+1,chosen)};
+// ---------- pause ----------
+// the act clock, card/ring deadlines and game timers all stop; the board is covered so a pause can't be used to read ahead
+function setPause(on){if(!S||!S.running||S.paused===on)return;S.paused=on;$('pauseBox').hidden=!on;$('pause').setAttribute('aria-pressed',on);$('pause').textContent=on?'계속':'일시정지';
+  try{if(AC)on?AC.suspend():AC.resume()}catch(e){}if(on)$('pauseGo').focus()}
+$('pause').onclick=()=>setPause(!(S&&S.paused));$('pauseGo').onclick=()=>setPause(false);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
+document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||!S||!S.running)return;const typing=e.target&&e.target.tagName==='INPUT';
+  if(e.key==='Escape'||(!typing&&(e.key==='p'||e.key==='P'||e.key==='ㅔ'))){e.preventDefault();setPause(!S.paused);return}
+  // 1–4 answer the phone that's ringing
+  if(!typing&&!S.paused&&S.ring&&/^[1-9]$/.test(e.key)){const b=$('ringOpts').querySelectorAll('.opt')[+e.key-1];if(b){e.preventDefault();b.click()}}});
 AI.init();
 $('reroll').onclick=showIntro;
 $('again').onclick=()=>{$('ending').hidden=true;showIntro();$('intro').hidden=false};

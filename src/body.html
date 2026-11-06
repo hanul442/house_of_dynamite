@@ -11,6 +11,7 @@
       <span class="pill" id="pGmd">GMD 대기</span>
       <span class="pill" id="pPres">POTUS: —</span>
       <span class="pill" id="pSpeed">×3</span>
+      <button class="pill" id="pause" type="button" aria-pressed="false" title="일시정지 (P / Esc)">일시정지</button>
       <button class="pill" id="snd" type="button" aria-pressed="true">소리 ON</button>
       <button class="pill" id="mus" type="button" aria-pressed="true">음악 ON</button>
     </div>
@@ -115,6 +116,15 @@
     </div>
     <button class="btn primary" id="start">1막 시작</button>
     <button class="btn" id="reroll" style="margin-left:6px">다른 상황</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseBox" hidden>
+  <div class="sheet">
+    <div class="kicker">일시정지</div>
+    <h1>시계가 멈췄다.</h1>
+    <p>탄착 시계, 결정 마감, 직통 전화가 모두 멈춘 상태입니다. 상황판은 다시 시작할 때까지 가려집니다.</p>
+    <button class="btn primary" id="pauseGo">계속 (P / Esc)</button>
   </div>
 </div>
 
