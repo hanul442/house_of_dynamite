@@ -46,7 +46,12 @@ function freshGame(){const sc=genScenario();return {sc,TOTAL:sc.total,act:0,spee
     gmd:null,aegis:null,alloc:null,evac:null,defcon:4,hotline:null,allies:null,nuc:null,cog:null,speech:null,cityAct:null,asw:null,decap:null,jet:null,rok:null,cyber:null,drill:null,t2rep:null,leakAns:null,options:[],evac2:null,alloc2:null,presAns:null,presAns2:null,rucall:null,ruline:null,briefFix:null,over:null,announce:null,evacOff:null,
     auth:null,decision:null,target:null,retal:null},
   log:[],intercept:null,shots:0,aegisHit:null,secondHit:null,altHit:null,shots2:0,second:null}}
-function freshAct(){return {elapsed:0,startSec:0,running:false,fired:new Set(),feed:[],cards:[],calls:{stratcom:0,dia:0,state:0,fema:0,norad:0},callCool:{},ring:null,ringQueue:[],principals:{},linkDead:false,feedDead:false,phase:'threat',postStart:0,lastTele:-99,t2:null,cep:null,shot2:undefined,kc:{},selOpt:null}}
+function freshAct(){return {elapsed:0,startSec:0,running:false,fired:new Set(),feed:[],cards:[],calls:{stratcom:0,dia:0,state:0,fema:0,norad:0},callCool:{},timers:[],paused:false,ring:null,ringQueue:[],principals:{},linkDead:false,feedDead:false,phase:'threat',postStart:0,lastTele:-99,t2:null,cep:null,shot2:undefined,kc:{},selOpt:null}}
+// game-clock timers: they follow the act's clock, freeze while paused, and are dropped when the act ends
+function later(fn,ms){if(!S||!G)return;S.timers.push({at:S.elapsed+ms*G.speed/1000,fn})}
+function runTimers(){if(!S.timers.length)return;const due=S.timers.filter(x=>S.elapsed>=x.at);if(!due.length)return;S.timers=S.timers.filter(x=>S.elapsed<x.at);due.sort((a,b)=>a.at-b.at);for(const x of due){if(!S.running)break;x.fn()}}
+// Korean particles that depend on the final consonant: josa('시카고','을','를') → '시카고를' (non-Hangul endings like 'D.C.' read as a vowel)
+function josa(w,a,b){const c=/[가-힣]$/.test(w)?w.charCodeAt(w.length-1)-0xAC00:-1;const jong=c>=0&&c<11172?c%28:0;if(a==='으로')return w+(jong&&jong!==8?'으로':'로');return w+(jong?a:b)}
 const fmt=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const left=()=>G.TOTAL-S.elapsed;
 const F=()=>G.shared, T=()=>G.sc.truth, C=()=>G.sc.city;
@@ -83,9 +88,9 @@ function tickCards(){for(const c of S.cards){if(c.done)continue;const el=documen
 
 // ---------- rings ----------
 function ring(who,q,opts,onMiss){if(S.ring){S.ringQueue.push([who,q,opts,onMiss]);return}
-  const lag=G.sc.pres.lag;S.ring={who,q,opts,onMiss,deadline:S.elapsed+(12-lag*2)*Math.max(1,G.speed/1.5),born:S.elapsed};SFX.ring();
-  $('ringWho').textContent=who;$('ringQ').textContent=q;const o=$('ringOpts');o.innerHTML='';for(const op of opts){const b=document.createElement('button');b.type='button';b.className='opt';b.innerHTML=op.t;b.onclick=()=>{op.go();closeRing()};o.appendChild(b)}$('ring').hidden=false}
-function closeRing(){S.ring=null;$('ring').hidden=true;if(S.ringQueue.length){const n=S.ringQueue.shift();setTimeout(()=>{if(S.running)ring(...n)},700)}}
+  const lag=G.sc.pres.lag;const r=S.ring={who,q,opts,onMiss,deadline:S.elapsed+(12-lag*2)*Math.max(1,G.speed/1.5),born:S.elapsed};SFX.ring();
+  $('ringWho').textContent=who;$('ringQ').textContent=q;const o=$('ringOpts');o.innerHTML='';opts.forEach((op,i)=>{const b=document.createElement('button');b.type='button';b.className='opt';b.innerHTML=`<kbd>${i+1}</kbd>${op.t}`;b.onclick=()=>{if(S.ring!==r)return;op.go();closeRing()};o.appendChild(b)});$('ring').hidden=false}
+function closeRing(){S.ring=null;$('ring').hidden=true;if(S.ringQueue.length){const n=S.ringQueue.shift();later(()=>{if(S.running)ring(...n)},700)}}
 function tickRing(){if(!S.ring)return;const r=S.ring,rem=r.deadline-S.elapsed,tot=r.deadline-r.born;$('ringT').textContent=fmt(rem);$('ringBar').style.width=Math.max(0,rem/tot*100)+'%';if(rem<=0){F().ringMissed++;SFX.bad();r.onMiss();closeRing();EVT.emit('ring_missed',{who:r.who})}}
 
 // ---------- calls ----------
@@ -96,7 +101,7 @@ function callChannel(k){
   if(!S||!S.running||S.callCool[k]>0)return;S.callCool[k]=70;S.calls[k]++;F().calls++;const n=S.calls[k],t=T(),f=F(),sc=G.sc;
   const names={stratcom:'STRATCOM GOC',dia:'DIA 당직',state:'국무부 작전센터',fema:'FEMA 국가감시센터',norad:'NORAD 지휘센터'};
   me(names[k]+' 호출. 확인/추정 구분 재보고 요구.');post(names[k],'noise','연결 대기... 담당자 호출 중.');
-  setTimeout(()=>{if(!S.running)return;const siteN=sc.site.n,sea=sc.site.sea;
+  later(()=>{if(!S.running)return;const siteN=sc.site.n,sea=sc.site.sea;
     const L={
       stratcom:[`TRK 0417 재산출: 탄착 중심 ${C().n} 도심 ${Math.round(R(4,18))}km. 오차 반경 축소.`,`요격 자산 재확인: ${sc.assets.n}. 전부 정상.${sc.assets.gbi<2?' 밴덴버그 예비 사거리 밖.':''}`,'재진입체 단면적: 1개. 기만체 전개 징후 없음.'],
       dia:{dprk:[`발사 지점 ${siteN}. 북한 영해 경계 ${Math.round(R(5,30))}km.`,'발사 20분 전 북한 전략군 지휘망 통신 급증. 분석 지연으로 1차 보고 누락.','비행 프로파일 화성-18 계열 83% 일치.'],
@@ -167,7 +172,7 @@ function commonReports(){
   at(.39,()=>post('STRATCOM GOC','intel','TRK 0417 RV 레이더 단면적 1개. 기만체 무. 질량 추정 탄두급. 끝.','중간'));
   if(t.id==='sat'){
     at(.38,()=>post('NORAD 지휘센터','alert','궤적 재분석: 탄도 프로파일 이탈. 궤도 진입 가능성 60%. 러시아 정찰위성 발사일 수 있음.','중간'));
-    at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';EVT.emit('sat',{});if(G.act<3)setTimeout(()=>{if(S.running)endAct()},5000/G.speed)});
+    at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';EVT.emit('sat',{});if(G.act<3)later(()=>{if(S.running)endAct()},5000/G.speed)});
   }
   at(.40,()=>{if(f.aegis==='go'&&!hit()&&t.id!=='sat'){G.aegisHit=sc.rolls.aegis<.5;post('7함대','alert',G.aegisHit?'SM-3 요격 성공. TRK 0417 소실. GBI 교전 불요.':'SM-3 요격 실패. 표적 계속. GBI 교전 진행.','높음');if(G.aegisHit){G.intercept='hit';markKill('AEGIS SM-3');$('pGmd').textContent='이지스 성공';EVT.emit('aegis_hit',{})}else EVT.emit('aegis_miss',{})}});
   at(.44,()=>{if(hit()||t.id==='sat')return;const r=resolveGBI();$('pGmd').textContent='GMD 교전';$('pGmd').className='pill on';post('GMD 포트 그릴리','alert',r.msg);gmdStep('launch');EVT.emit('gbi_launch',{shots:r.shots})});
@@ -192,7 +197,7 @@ function commonReports(){
   at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-60초.')});
   at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-15초. 전 채널 침묵.');S.linkDead=true;renderConf()}});
   at(.999,()=>{if(!hit()){post('C2BMC','alert','TRK 0417 — 신호 소실.');EVT.emit('impact',{city:city.n});$('wrap').style.transition='filter 1.2s';$('wrap').style.filter='brightness(6) saturate(0)';setTimeout(()=>{$('wrap').style.filter='brightness(0.15)'},900);setTimeout(()=>{$('wrap').style.filter='';$('wrap').style.transition=''},4000)}});
-  at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);setTimeout(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');setTimeout(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())setTimeout(endAct,3500);else endAct()});
+  at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);later(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');later(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())later(endAct,3500);else endAct()});
   pat(0,()=>post('STRATCOM GOC','alert',`표적 소실 확인. 요격 고도 ${Math.round(R(380,620))}km. 잔해 낙하 예상 구역 산출 중. 2차 발사 감시 강화.`,'높음'));
   pat(15,()=>post('NORAD 미사일경보센터','',`발사 해역(${sc.site.sea}) 적외선 감시 강화. 추가 발사 징후 현재 없음.`,'중간'));
   pat(70,()=>post('NORAD 지휘센터','intel',`잔해 낙하: ${pick(['캐나다 유콘 북부 무인지대','알래스카 북극해 해상','베링해 공해'])}. 민간 피해 없음.`,'높음'));

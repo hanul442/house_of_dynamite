@@ -65,7 +65,7 @@ const REACT={fired:new Set(),
   on(e){const f=F();for(const r of this.rules){if(r.on!==e.type)continue;if(r.when&&!r.when(e.data,f))continue;const key=r.on+'|'+(r.lines[0][0])+'|'+String(r.lines[0][1]).slice(0,20)+'|'+(e.data.k||e.data.side||e.data.agency||'');if(this.fired.has(key))continue;
     // when the AI line is live, only core beats are scripted; the rest is Claude's job
     if(typeof AI!=='undefined'&&AI.ready&&!r.core)continue;this.fired.add(key);
-    r.lines.forEach(([who,txt],i)=>setTimeout(()=>{if(!S.running)return;const t=typeof txt==='function'?txt(e.data,f):txt;say(who,t,i===r.lines.length-1)},800+i*1600))}}
+    r.lines.forEach(([who,txt],i)=>later(()=>{if(!S.running)return;const t=typeof txt==='function'?txt(e.data,f):txt;say(who,t,i===r.lines.length-1)},800+i*1600))}}
 };
 
 // ---------- CHAIN: consequences. A choice now spawns a report, a call or a card later, under conditions. ----------
@@ -90,12 +90,12 @@ const CHAIN={fired:new Set(),
     {id:'allies_all_leak',on:'allies',when:(d)=>d.k==='all',delay:90,do:()=>{post('주일미군사령부','alert','일본 자위대 전군 경계 격상. NHK 속보 "미국, 탄도미사일 위협 통보". 누설 경로 일본 측.');post('WHSR 당직 부사관','noise','대변인실 전화 폭주. "NHK가 맞냐."')}},
     {id:'allies_none_rok',on:'allies',when:(d)=>d.k==='none',delay:120,do:()=>post('주한미군사령부','alert','한국 합참: 통보 없음에 항의. "자체 판단으로 대북 경계 격상." 연합사 통제 이탈 가능성.','MED')},
     {id:'decap_dprk',on:'world',when:(d,f)=>d.side==='DPRK'&&d.level>=3&&f.decap==='prep',delay:30,do:()=>say('국가안보보좌관','"참수 준비를 북한이 감지했어. 그래서 2차 발사대를 꺼낸 거야. 우리가 만든 거라고."',true)},
-    {id:'ru4_call',on:'world',when:(d)=>d.side==='RU'&&d.level>=4,delay:20,do:()=>ring('국무장관 직통','"러시아 대통령실 직통. \'귀측이 발사 준비하면 우리도 한다.\' 지금 받아야 해요."',[{t:'"연결해."',go:()=>{F().ruline='yes';me('러시아 정상 통화 수락.');setTimeout(()=>{if(S.running)say('통역','"...우리는 쏘지 않았다. 귀측이 먼저 움직이면 우리는 대응한다. 이 통화가 마지막 기회다."',true)},6000/G.speed)}},{t:'"지금 아니야."',go:()=>{F().ruline='no';me('러시아 정상 통화 거부.');WORLD.ru.alert=4}}],()=>{F().ruline='none'})},
+    {id:'ru4_call',on:'world',when:(d)=>d.side==='RU'&&d.level>=4,delay:20,do:()=>ring('국무장관 직통','"러시아 대통령실 직통. \'귀측이 발사 준비하면 우리도 한다.\' 지금 받아야 해요."',[{t:'"연결해."',go:()=>{F().ruline='yes';me('러시아 정상 통화 수락.');later(()=>{if(S.running)say('통역','"...우리는 쏘지 않았다. 귀측이 먼저 움직이면 우리는 대응한다. 이 통화가 마지막 기회다."',true)},6000/G.speed)}},{t:'"지금 아니야."',go:()=>{F().ruline='no';me('러시아 정상 통화 거부.');WORLD.ru.alert=4}}],()=>{F().ruline='none'})},
     {id:'t2_one_real',on:'second_real',when:(d,f)=>f.t2rep==='one',delay:15,do:()=>say('군사보좌관','"대통령께 1발이라고 올렸는데 2발이야. 대통령이 \'왜 안 올렸냐\'고 하신다."',true)},
     {id:'t2_two_fake',on:'second_fake',when:(d,f)=>f.t2rep==='two',delay:15,do:()=>say('비서실장','"2발이라고 해서 대통령이 PEOC로 뛰어내려갔어. 허위였다고? 이것도 기록돼."',true)},
     {id:'mac_hold_delay',on:'gbi_miss',when:(d,f)=>f.mac!=='yes'&&d.left===0,delay:10,do:()=>post('NMCC','alert','MAC 미개설 상태. 핵 지휘 절차 개시까지 추가 60초 소요.','HIGH')},
-    {id:'post_flash',on:'post',delay:100,do:()=>{if(G.sc.rolls.flash<.3){post('NORAD 미사일경보센터','alert','FLASH. 동일 해역 IR 섬광 탐지. 2차 발사 가능성. 분석 중.');say('국방장관','"또 쐈어? 거봐."',true);setTimeout(()=>{if(S.running){post('NORAD 미사일경보센터','intel','섬광 판정: 잔해 재진입 연소. 발사 아님. 끝.','HIGH');say('STRATCOM 사령관','"잔해다. 발사 아니다."',true)}},25000/G.speed)}}},
+    {id:'post_flash',on:'post',delay:100,do:()=>{if(G.sc.rolls.flash<.3){post('NORAD 미사일경보센터','alert','FLASH. 동일 해역 IR 섬광 탐지. 2차 발사 가능성. 분석 중.');say('국방장관','"또 쐈어? 거봐."',true);later(()=>{if(S.running){post('NORAD 미사일경보센터','intel','섬광 판정: 잔해 재진입 연소. 발사 아님. 끝.','HIGH');say('STRATCOM 사령관','"잔해다. 발사 아니다."',true)}},25000/G.speed)}}},
     {id:'press_leak_confirm',on:'player_said',when:()=>false,do:()=>{}},
   ],
-  on(e){const f=F();for(const r of this.rules){if(r.on!==e.type||this.fired.has(r.id))continue;if(r.when&&!r.when(e.data,f))continue;this.fired.add(r.id);setTimeout(()=>{if(S.running)r.do(e.data,f)},(r.delay||0)*1000/G.speed)}},
+  on(e){const f=F();for(const r of this.rules){if(r.on!==e.type||this.fired.has(r.id))continue;if(r.when&&!r.when(e.data,f))continue;this.fired.add(r.id);later(()=>{if(S.running)r.do(e.data,f)},(r.delay||0)*1000/G.speed)}},
 };

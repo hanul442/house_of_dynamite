@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>18분 상황실</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -10,6 +15,7 @@
   --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   color-scheme:dark;
 }
+[hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:13px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px;box-sizing:border-box;overflow:hidden}
@@ -101,6 +107,9 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
 .ring h3{margin:0;font-family:var(--display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);display:flex;justify-content:space-between}
 .ring p{margin:6px 0 8px;font-size:14px;font-weight:500}
 .ring .opt{border-color:#4a2a2a}
+.ring .opt kbd{display:inline-block;min-width:16px;margin-right:6px;padding:0 4px;border:1px solid #4a2a2a;border-radius:2px;font:10px var(--display);color:var(--muted);text-align:center}
+#pause[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+@media (hover:none){.ring .opt kbd{display:none}}
 .ring .bar{height:3px;background:#3a1a1a;margin:0 0 8px;overflow:hidden}.ring .bar i{display:block;height:100%;background:var(--red)}
 .overlay{position:absolute;inset:0;background:rgba(7,11,16,.97);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;z-index:8}
 .sheet{max-width:660px;width:100%}
@@ -197,7 +206,8 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
   .sheet h1{font-size:22px}.acts{flex-direction:column}
 }
 </style>
-
+</head>
+<body>
 <div class="wrap" id="wrap">
 <div class="app">
   <div class="banner" id="banner">MISSILE THREAT · CONUS · OPREP-3 PINNACLE</div>
@@ -211,6 +221,7 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
       <span class="pill" id="pGmd">GMD 대기</span>
       <span class="pill" id="pPres">POTUS: —</span>
       <span class="pill" id="pSpeed">×3</span>
+      <button class="pill" id="pause" type="button" aria-pressed="false" title="일시정지 (P / Esc)">일시정지</button>
       <button class="pill" id="snd" type="button" aria-pressed="true">소리 ON</button>
       <button class="pill" id="mus" type="button" aria-pressed="true">음악 ON</button>
     </div>
@@ -318,6 +329,15 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
   </div>
 </div>
 
+<div class="overlay" id="pauseBox" hidden>
+  <div class="sheet">
+    <div class="kicker">일시정지</div>
+    <h1>시계가 멈췄다.</h1>
+    <p>탄착 시계, 결정 마감, 직통 전화가 모두 멈춘 상태입니다. 상황판은 다시 시작할 때까지 가려집니다.</p>
+    <button class="btn primary" id="pauseGo">계속 (P / Esc)</button>
+  </div>
+</div>
+
 <div class="overlay" id="ending" hidden>
   <div class="sheet">
     <div class="kicker" id="endKicker"></div>
@@ -388,7 +408,12 @@ function freshGame(){const sc=genScenario();return {sc,TOTAL:sc.total,act:0,spee
     gmd:null,aegis:null,alloc:null,evac:null,defcon:4,hotline:null,allies:null,nuc:null,cog:null,speech:null,cityAct:null,asw:null,decap:null,jet:null,rok:null,cyber:null,drill:null,t2rep:null,leakAns:null,options:[],evac2:null,alloc2:null,presAns:null,presAns2:null,rucall:null,ruline:null,briefFix:null,over:null,announce:null,evacOff:null,
     auth:null,decision:null,target:null,retal:null},
   log:[],intercept:null,shots:0,aegisHit:null,secondHit:null,altHit:null,shots2:0,second:null}}
-function freshAct(){return {elapsed:0,startSec:0,running:false,fired:new Set(),feed:[],cards:[],calls:{stratcom:0,dia:0,state:0,fema:0,norad:0},callCool:{},ring:null,ringQueue:[],principals:{},linkDead:false,feedDead:false,phase:'threat',postStart:0,lastTele:-99,t2:null,cep:null,shot2:undefined,kc:{},selOpt:null}}
+function freshAct(){return {elapsed:0,startSec:0,running:false,fired:new Set(),feed:[],cards:[],calls:{stratcom:0,dia:0,state:0,fema:0,norad:0},callCool:{},timers:[],paused:false,ring:null,ringQueue:[],principals:{},linkDead:false,feedDead:false,phase:'threat',postStart:0,lastTele:-99,t2:null,cep:null,shot2:undefined,kc:{},selOpt:null}}
+// game-clock timers: they follow the act's clock, freeze while paused, and are dropped when the act ends
+function later(fn,ms){if(!S||!G)return;S.timers.push({at:S.elapsed+ms*G.speed/1000,fn})}
+function runTimers(){if(!S.timers.length)return;const due=S.timers.filter(x=>S.elapsed>=x.at);if(!due.length)return;S.timers=S.timers.filter(x=>S.elapsed<x.at);due.sort((a,b)=>a.at-b.at);for(const x of due){if(!S.running)break;x.fn()}}
+// Korean particles that depend on the final consonant: josa('시카고','을','를') → '시카고를' (non-Hangul endings like 'D.C.' read as a vowel)
+function josa(w,a,b){const c=/[가-힣]$/.test(w)?w.charCodeAt(w.length-1)-0xAC00:-1;const jong=c>=0&&c<11172?c%28:0;if(a==='으로')return w+(jong&&jong!==8?'으로':'로');return w+(jong?a:b)}
 const fmt=s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 const left=()=>G.TOTAL-S.elapsed;
 const F=()=>G.shared, T=()=>G.sc.truth, C=()=>G.sc.city;
@@ -425,9 +450,9 @@ function tickCards(){for(const c of S.cards){if(c.done)continue;const el=documen
 
 // ---------- rings ----------
 function ring(who,q,opts,onMiss){if(S.ring){S.ringQueue.push([who,q,opts,onMiss]);return}
-  const lag=G.sc.pres.lag;S.ring={who,q,opts,onMiss,deadline:S.elapsed+(12-lag*2)*Math.max(1,G.speed/1.5),born:S.elapsed};SFX.ring();
-  $('ringWho').textContent=who;$('ringQ').textContent=q;const o=$('ringOpts');o.innerHTML='';for(const op of opts){const b=document.createElement('button');b.type='button';b.className='opt';b.innerHTML=op.t;b.onclick=()=>{op.go();closeRing()};o.appendChild(b)}$('ring').hidden=false}
-function closeRing(){S.ring=null;$('ring').hidden=true;if(S.ringQueue.length){const n=S.ringQueue.shift();setTimeout(()=>{if(S.running)ring(...n)},700)}}
+  const lag=G.sc.pres.lag;const r=S.ring={who,q,opts,onMiss,deadline:S.elapsed+(12-lag*2)*Math.max(1,G.speed/1.5),born:S.elapsed};SFX.ring();
+  $('ringWho').textContent=who;$('ringQ').textContent=q;const o=$('ringOpts');o.innerHTML='';opts.forEach((op,i)=>{const b=document.createElement('button');b.type='button';b.className='opt';b.innerHTML=`<kbd>${i+1}</kbd>${op.t}`;b.onclick=()=>{if(S.ring!==r)return;op.go();closeRing()};o.appendChild(b)});$('ring').hidden=false}
+function closeRing(){S.ring=null;$('ring').hidden=true;if(S.ringQueue.length){const n=S.ringQueue.shift();later(()=>{if(S.running)ring(...n)},700)}}
 function tickRing(){if(!S.ring)return;const r=S.ring,rem=r.deadline-S.elapsed,tot=r.deadline-r.born;$('ringT').textContent=fmt(rem);$('ringBar').style.width=Math.max(0,rem/tot*100)+'%';if(rem<=0){F().ringMissed++;SFX.bad();r.onMiss();closeRing();EVT.emit('ring_missed',{who:r.who})}}
 
 // ---------- calls ----------
@@ -438,7 +463,7 @@ function callChannel(k){
   if(!S||!S.running||S.callCool[k]>0)return;S.callCool[k]=70;S.calls[k]++;F().calls++;const n=S.calls[k],t=T(),f=F(),sc=G.sc;
   const names={stratcom:'STRATCOM GOC',dia:'DIA 당직',state:'국무부 작전센터',fema:'FEMA 국가감시센터',norad:'NORAD 지휘센터'};
   me(names[k]+' 호출. 확인/추정 구분 재보고 요구.');post(names[k],'noise','연결 대기... 담당자 호출 중.');
-  setTimeout(()=>{if(!S.running)return;const siteN=sc.site.n,sea=sc.site.sea;
+  later(()=>{if(!S.running)return;const siteN=sc.site.n,sea=sc.site.sea;
     const L={
       stratcom:[`TRK 0417 재산출: 탄착 중심 ${C().n} 도심 ${Math.round(R(4,18))}km. 오차 반경 축소.`,`요격 자산 재확인: ${sc.assets.n}. 전부 정상.${sc.assets.gbi<2?' 밴덴버그 예비 사거리 밖.':''}`,'재진입체 단면적: 1개. 기만체 전개 징후 없음.'],
       dia:{dprk:[`발사 지점 ${siteN}. 북한 영해 경계 ${Math.round(R(5,30))}km.`,'발사 20분 전 북한 전략군 지휘망 통신 급증. 분석 지연으로 1차 보고 누락.','비행 프로파일 화성-18 계열 83% 일치.'],
@@ -509,7 +534,7 @@ function commonReports(){
   at(.39,()=>post('STRATCOM GOC','intel','TRK 0417 RV 레이더 단면적 1개. 기만체 무. 질량 추정 탄두급. 끝.','중간'));
   if(t.id==='sat'){
     at(.38,()=>post('NORAD 지휘센터','alert','궤적 재분석: 탄도 프로파일 이탈. 궤도 진입 가능성 60%. 러시아 정찰위성 발사일 수 있음.','중간'));
-    at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';EVT.emit('sat',{});if(G.act<3)setTimeout(()=>{if(S.running)endAct()},5000/G.speed)});
+    at(.47,()=>{post('NORAD 지휘센터','alert','궤도 진입 확인. 근지점 410km. 러시아 정찰위성. 탄도 위협 종료.','높음');G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';EVT.emit('sat',{});if(G.act<3)later(()=>{if(S.running)endAct()},5000/G.speed)});
   }
   at(.40,()=>{if(f.aegis==='go'&&!hit()&&t.id!=='sat'){G.aegisHit=sc.rolls.aegis<.5;post('7함대','alert',G.aegisHit?'SM-3 요격 성공. TRK 0417 소실. GBI 교전 불요.':'SM-3 요격 실패. 표적 계속. GBI 교전 진행.','높음');if(G.aegisHit){G.intercept='hit';markKill('AEGIS SM-3');$('pGmd').textContent='이지스 성공';EVT.emit('aegis_hit',{})}else EVT.emit('aegis_miss',{})}});
   at(.44,()=>{if(hit()||t.id==='sat')return;const r=resolveGBI();$('pGmd').textContent='GMD 교전';$('pGmd').className='pill on';post('GMD 포트 그릴리','alert',r.msg);gmdStep('launch');EVT.emit('gbi_launch',{shots:r.shots})});
@@ -534,7 +559,7 @@ function commonReports(){
   at(.945,()=>{if(!hit())post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-60초.')});
   at(.985,()=>{if(!hit()){post('NORAD 미사일경보센터','alert','TRK 0417 탄착 T-15초. 전 채널 침묵.');S.linkDead=true;renderConf()}});
   at(.999,()=>{if(!hit()){post('C2BMC','alert','TRK 0417 — 신호 소실.');EVT.emit('impact',{city:city.n});$('wrap').style.transition='filter 1.2s';$('wrap').style.filter='brightness(6) saturate(0)';setTimeout(()=>{$('wrap').style.filter='brightness(0.15)'},900);setTimeout(()=>{$('wrap').style.filter='';$('wrap').style.transition=''},4000)}});
-  at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);setTimeout(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');setTimeout(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())setTimeout(endAct,3500);else endAct()});
+  at(1,()=>{const twoLive=sc.second&&sc.second.real&&!G.secondHit;if(twoLive){post('C2BMC','alert',`TRK 0418 계속 비행. ${sc.second.city.n} 탄착 ${fmt(sc.second.offset)} 후.`);later(()=>{if(S.running){post('C2BMC','alert','TRK 0418 — 신호 소실.');later(endAct,2500)}},sc.second.offset*1000/G.speed)}else if(!hit())later(endAct,3500);else endAct()});
   pat(0,()=>post('STRATCOM GOC','alert',`표적 소실 확인. 요격 고도 ${Math.round(R(380,620))}km. 잔해 낙하 예상 구역 산출 중. 2차 발사 감시 강화.`,'높음'));
   pat(15,()=>post('NORAD 미사일경보센터','',`발사 해역(${sc.site.sea}) 적외선 감시 강화. 추가 발사 징후 현재 없음.`,'중간'));
   pat(70,()=>post('NORAD 지휘센터','intel',`잔해 낙하: ${pick(['캐나다 유콘 북부 무인지대','알래스카 북극해 해상','베링해 공해'])}. 민간 피해 없음.`,'높음'));
@@ -615,14 +640,14 @@ function act1(){
     {t:'"제가 답할 자리가 아닙니다."',go:()=>{f.presAns='pass';me('POTUS 직접 질의: 회피.')}},
   ],()=>{f.presAns='silent';post('군사보좌관','alert','"...당직, 거기 있나? 끊는다."')}));
   at(.78,()=>card('c21','교대 요청','당직 부사관이 교대를 요청합니다. "저 시카고에 애들 있어요." 교대하면 피드 인수인계에 40초 공백.',[
-    {k:'ok',t:'교대 허가',s:'',go:()=>{me('부사관 교대 허가.');S.feedDead=true;$('tData').textContent='HANDOVER';$('tData').className='stale';setTimeout(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE';$('tData').className=''}},40000/G.speed)}},
+    {k:'ok',t:'교대 허가',s:'',go:()=>{me('부사관 교대 허가.');S.feedDead=true;$('tData').textContent='HANDOVER';$('tData').className='stale';later(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE';$('tData').className=''}},40000/G.speed)}},
     {k:'no',t:'불허',s:'"끝나고."',go:()=>{me('부사관 교대 불허.')}},
   ],30,()=>{}));
   at(.845,()=>{if(!isHit())ring(`${city.n} 주지사 직통`,'"지금 우리 애들한테 뭐라고 해야 돼요. 남은 시간 솔직히."',[{t:'"3분 이내입니다. 지하로."',go:()=>me('주지사: 잔여 시간 통보.')},{t:'"대통령실에서 연락드릴 겁니다."',go:()=>me('주지사: 상부 이관.')}],()=>{})});
   at(.97,()=>{if(!isHit())post('WHSR 당직 부사관','noise',`...당직, ${city.n}에 가족 있는 사람들 있어요.`)});
   if(t.id==='dprk-sub')at(.2,()=>card('b3','한국 해군 좌표 요청','한국 해군이 우리 발사 해역 좌표를 요구합니다. 당신은 연결하거나 보류할 수 있습니다.',[{k:'share',t:'STRATCOM에 연결',s:'',go:()=>{f.rokshare='share';me('한국 해군 요청 STRATCOM 연결.')}},{k:'no',t:'보류',s:'',go:()=>{f.rokshare='no';me('좌표 요청 보류.')}}],35,()=>{f.rokshare='none'}));
   if(t.id==='unknown')at(.38,()=>card('b4','비국가 행위자 가설','DIA 분석관이 "국가 발사가 아닐 수 있다"는 메모를 올려달라고 합니다. 올리면 보복 논의가 멈춥니다.',[{k:'report',t:'메모 상신',s:'',go:()=>{f.nonstate='report';me('비국가 행위자 가설 메모 상신.')}},{k:'hold',t:'보류',s:'',go:()=>{f.nonstate='hold';me('비국가 가설 보류.')}}],40,()=>{f.nonstate='none'}));
-  if(t.id==='sat')at(.2,()=>card('b5','러시아 우주군 확인','우주군이 러시아에 발사 통보 여부를 묻자고 합니다. 물으면 우리가 탐지했다는 걸 알립니다.',[{k:'ask',t:'확인 요청 연결',s:'',go:()=>{f.space='ask';me('러시아 우주군 확인 요청 연결.');setTimeout(()=>{if(S.running)post('국무부 작전센터','intel','러시아 우주군: "정찰위성 발사. 사전 통보 누락은 유감."','중간')},25000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.space='no';me('확인 보류.')}}],35,()=>{f.space='none'}));
+  if(t.id==='sat')at(.2,()=>card('b5','러시아 우주군 확인','우주군이 러시아에 발사 통보 여부를 묻자고 합니다. 물으면 우리가 탐지했다는 걸 알립니다.',[{k:'ask',t:'확인 요청 연결',s:'',go:()=>{f.space='ask';me('러시아 우주군 확인 요청 연결.');later(()=>{if(S.running)post('국무부 작전센터','intel','러시아 우주군: "정찰위성 발사. 사전 통보 누락은 유감."','중간')},25000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.space='no';me('확인 보류.')}}],35,()=>{f.space='none'}));
   if(sc.pres.k==='abroad')at(.09,()=>card('b7','대행 권한 질의','비서실장이 "부통령 임시 권한을 검토해야 하냐"고 상황실에 묻습니다. 통신 지연 80초.',[{k:'vp',t:'"검토 필요" 전달',s:'',go:()=>{f.acting='vp';me('부통령 임시 권한 검토 전달.');$('pPres').textContent='VP 대행 검토'}},{k:'potus',t:'"대통령 연결 유지" 전달',s:'',go:()=>{f.acting='potus';me('대통령 권한 유지 전달.')}}],40,()=>{f.acting='potus'}));
   if(sc.second)at(.36,()=>{if(sc.second.real){const ao=[{k:'a',t:'0417 전량'},{k:'split',t:'분산'},{k:'b',t:'0418 전량'}].filter(o=>sc.assets.gbi>=2||o.k!=='split');AI.decide('2차 표적 GBI 배분',ao,(k)=>{f.alloc=k;f.alloc2=f.alloc2||(sc.second.reserve?'reserve':sc.assets.aegis?'aegis':'none');say('합참의장',`"회의선 결정: 0418은 ${ {a:'요격 없음',split:'GBI 분산',b:'GBI 집중'}[f.alloc]}${f.alloc2==='reserve'?' + 밴덴버그 예비':f.alloc2==='aegis'?' + 이지스':''}. 당직, ${sc.second.city.n}에도 경보 문의 들어왔나?"`,true);card('c9b',`${sc.second.city.n} 경보 문의 전달`,`${sc.second.city.n} 주 비상관리청이 경보 여부를 묻습니다. 당신은 FEMA에 전달만 할 수 있습니다.`,[{k:'now',t:'"즉시 발령 요청" 전달',s:'',go:()=>{f.evac2='now';me(`${sc.second.city.n} 경보 즉시 발령 요청 전달.`)}},{k:'wait',t:'"교전 결과 후" 전달',s:'',go:()=>{f.evac2='wait';me(`${sc.second.city.n} 경보 결과 후 전달.`)}}],35,()=>{f.evac2='none'})},sc.assets.gbi>=2?'split':'a')}});
   if(sc.second)at(.235,()=>card('c9','2차 항적 보고','TRK 0418이 실제인지 분리체 반사인지 모릅니다. 대통령께 "2발"로 올릴지.',[{k:'two',t:'"2발 발사"로 보고',s:'',go:()=>{f.t2rep='two';me('대통령 보고: 2발 발사 가능성.')}},{k:'one',t:'"1발, 2차 항적 분석 중"',s:'',go:()=>{f.t2rep='one';me('대통령 보고: 1발 확정, 2차 항적 미확인.')}}],40,()=>{f.t2rep='none';post('군사보좌관','alert','2차 항적 보고 누락. 대통령이 뉴스로 먼저 들으셨다.')}));
@@ -631,7 +656,7 @@ function act1(){
 
 // ---------- ACT 2: deputy national security advisor ----------
 const KC=[['track','TRACK · 표적 획득'],['commit','COMMIT · 교전 명령'],['launch','LAUNCH · GBI 발사'],['boost','BOOST · 부스터 분리'],['kv','KV SEP · 요격체 분리'],['intercept','INTERCEPT · 종말 유도'],['ka','KILL ASSESS · 판정']];
-function gmdStep(k){if(G.act!==2)return;const kc=S.kc;if(k==='launch'){['track','commit','launch'].forEach(x=>kc[x]='done');kc.boost='live';setTimeout(()=>{if(S.running){kc.boost='done';kc.kv='live';renderKC()}},8000/G.speed);setTimeout(()=>{if(S.running){kc.kv='done';kc.intercept='live';renderKC()}},18000/G.speed);setTimeout(()=>{if(S.running){kc.intercept='done';kc.ka='live';renderKC()}},27000/G.speed)}
+function gmdStep(k){if(G.act!==2)return;const kc=S.kc;if(k==='launch'){['track','commit','launch'].forEach(x=>kc[x]='done');kc.boost='live';later(()=>{if(S.running){kc.boost='done';kc.kv='live';renderKC()}},8000/G.speed);later(()=>{if(S.running){kc.kv='done';kc.intercept='live';renderKC()}},18000/G.speed);later(()=>{if(S.running){kc.intercept='done';kc.ka='live';renderKC()}},27000/G.speed)}
   if(k==='kill'){KC.forEach(([x])=>kc[x]='done');kc.result='KILL CONFIRMED'}if(k==='miss'){kc.ka='fail';kc.result='MISS · 2차 창 평가'}if(k==='miss2'){kc.ka='fail';kc.result='MISS · 창 종료'}renderKC()}
 function renderKC(){const kc=S.kc||{};$('kc').innerHTML=KC.map(([k,l])=>`<div class="step ${kc[k]||''}"><i></i><span>${l}</span><b>${kc[k]==='done'?'✓':kc[k]==='live'?'…':kc[k]==='fail'?'✗':''}</b></div>`).join('')+(kc.result?`<div class="step ${kc.ka==='fail'?'fail':'done'}" style="margin-top:4px"><i></i><span>${kc.result}</span><b></b></div>`:'');
   const n=G.sc.assets.gbi;let h='';for(let i=1;i<=n;i++){let st='armed';if(G.shots>=i){st=(isHit()&&i===G.shots)?'hit':(G.intercept==='miss'||G.shots>i)?'miss':'away'}h+=`<div class="${st}">GBI-${i} · ${ {armed:'ARMED',away:'IN FLIGHT',hit:'KILL',miss:'MISS'}[st]}</div>`}
@@ -658,7 +683,7 @@ function act2(){
     {k:'kj',t:'한·일만',s:'',go:()=>{f.allies='kj';me('한·일 한정 통보.');EVT.emit('allies',{k:'kj'})}},
     {k:'none',t:'보류',s:'',go:()=>{f.allies='none';me('동맹 통보 보류.');EVT.emit('allies',{k:'none'})}},
   ],50,()=>{f.allies='none';post('국무부 작전센터','alert','미결. 한국 측 항의.');EVT.emit('allies',{k:'none'})}));
-  if(sc.second)at(.34,()=>{if(!sc.second.real)return;const g=sc.assets.gbi;const o=[{k:'a',t:`0417(${city.n})에 GBI 전량`,s:`${sc.second.city.n}은 예비·이지스로만.`,go:()=>{f.alloc='a';me(`배분: 0417 GBI 전량.`)}}];
+  if(sc.second)at(.34,()=>{if(!sc.second.real)return;const g=sc.assets.gbi;const o=[{k:'a',t:`0417(${city.n})에 GBI 전량`,s:`${josa(sc.second.city.n,'은','는')} 예비·이지스로만.`,go:()=>{f.alloc='a';me(`배분: 0417 GBI 전량.`)}}];
     if(g>=2)o.push({k:'split',t:`분산 (0417 1발, 0418 ${g-1}발)`,s:'0417 61%.',go:()=>{f.alloc='split';me('배분: GBI 분산.')}});
     o.push({k:'b',t:`0418(${sc.second.city.n})에 GBI 전량`,s:`${city.n} 포기.`,go:()=>{f.alloc='b';me(`배분: 0418 GBI 전량. ${city.n} 포기.`)}});
     card('d5','GBI 배분 · 표적 2개',`GBI ${g}발. 0417→${city.n} (${CITIES[Object.keys(CITIES).find(k=>CITIES[k]===city)].pop}만), 0418→${sc.second.city.n} (${sc.second.city.pop}만). 0418 교전 창은 ${fmt(G.TOTAL*.60+sc.second.offset)}.`,o,45,()=>{f.alloc=g>=2?'split':'a';post('GMD 포트 그릴리','alert','배분 미수신. 표준 절차.')})});
@@ -687,7 +712,7 @@ function act2(){
   ],40,()=>{f.nuc='hold'}));
   const cityCards={'워싱턴 D.C.':['의사당 대피','상·하원 본회의 진행 중.',[['go','즉시 대피 명령'],['no','보류']]],'뉴욕':['UN 총회','각국 정상 40명 체류.',[['go','UN 통보'],['no','보류']]],'로스앤젤레스':['항만·공항 폐쇄','폐쇄 자체가 경보 효과.',[['go','폐쇄'],['no','유지']]],'샌프란시스코':['데이터센터 전환','금융망 15분 장애.',[['go','전환'],['no','유지']]],'시애틀':['핵잠수함 출항','킷샙 긴급 출항은 러시아가 봅니다.',[['go','긴급 출항'],['no','대기']]],'덴버':['샤이엔 마운틴 봉쇄','15초 통신 공백.',[['go','봉쇄'],['no','유지']]],'호놀룰루':['인도태평양사령부','자체 교전 권한 요구.',[['go','위임'],['no','거부']]],'시카고':['오헤어 전면 착륙','상공 항공기 180대.',[['go','전면 착륙'],['no','유지']]]}[city.n];
   if(cityCards)at(.235,()=>card('d10',cityCards[0],cityCards[1],cityCards[2].map(([k,t2])=>({k,t:t2,s:'',go:()=>{f.cityAct=k;me(`${cityCards[0]}: ${t2}.`)}})),35,()=>{f.cityAct='none'}));
-  if(sc.isSLBM)at(.12,()=>card('d11','대잠 자산 투입','P-8 초계기 재지향. 9분 뒤 발사 해역. 주체 단서.',[{k:'go',t:'재지향',s:'',go:()=>{f.asw='go';me('P-8 재지향.');setTimeout(()=>{if(S.running)post('P-8 초계기','intel',{'dprk-sub':'잠망경 항적 1건. 북한 신포급 추정.','ru-acc':'러시아 보레이급 부상 상태. 승조원 갑판에. 전투 태세 아님.'}[t.id]||'접촉 없음.','높음')},540000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.asw='no'}}],40,()=>{f.asw='none'}));
+  if(sc.isSLBM)at(.12,()=>card('d11','대잠 자산 투입','P-8 초계기 재지향. 9분 뒤 발사 해역. 주체 단서.',[{k:'go',t:'재지향',s:'',go:()=>{f.asw='go';me('P-8 재지향.');later(()=>{if(S.running)post('P-8 초계기','intel',{'dprk-sub':'잠망경 항적 1건. 북한 신포급 추정.','ru-acc':'러시아 보레이급 부상 상태. 승조원 갑판에. 전투 태세 아님.'}[t.id]||'접촉 없음.','높음')},540000/G.speed)}},{k:'no',t:'보류',s:'',go:()=>{f.asw='no'}}],40,()=>{f.asw='none'}));
   if(t.id==='dprk')at(.42,()=>card('d12','참수 옵션 준비','DIA가 북한 지도부 위치를 특정. 합참이 옵션 준비를 요청.',[{k:'prep',t:'준비',s:'',go:()=>{f.decap='prep';me('참수 옵션 준비.')}},{k:'no',t:'보류',s:'',go:()=>{f.decap='no'}}],40,()=>{f.decap='no'}));
   at(.49,()=>{if(G.intercept==='miss'&&G.shots===1&&sc.assets.gbi>=2&&f.gmd!=='delegate'&&f.alloc!=='split')ring('STRATCOM 사령관 직통','"2발째 창 25초. 지금 쏘면 45%. 쏠까?"',[{t:'발사',go:()=>{S.shot2=true;me('2발째 교전 승인.')}},{t:'보류, 대통령 판단',go:()=>{S.shot2=false;me('2발째 대통령 판단 상신.')}}],()=>{S.shot2=true;post('STRATCOM 사령관','alert','"응답 없음. 쏜다."')})});
   at(.56,()=>say('국가안보보좌관',isHit()?'"막았지만 대통령께서 옵션 폴더를 요구하신다. 뭘 넣을지 당신이 정리해."':'"대통령께서 옵션 폴더를 요구하신다. 뭘 넣을지 당신이 정리해."',true));
@@ -712,19 +737,19 @@ function act3(){
   at(start+.03,()=>{if(sc.second&&sc.second.real&&!G.secondHit)say('합참의장',`"0418은 아직 살아 있습니다. ${sc.second.city.n}. 교전 창 ${fmt(G.TOTAL*.60+sc.second.offset)}."`,true);if(isHit())say('국방장관','"막았습니다. 그래도 쏜 놈은 거기 있습니다. 다음 발은 언제든."',true);else if(G.intercept==='sat')say('국방장관','"위성이랍니다. 위성."',true);else say('국방장관',`"실패했습니다. ${city.n}. ${fmt(left())} 남았습니다."`,true)});
   at(start+.05,()=>say('국가안보보좌관',f.attrib==='unknown'||f.attrib==='none'?'"주체가 확정 안 됐습니다. 지금 쏘면 추측으로 쏘는 겁니다."':`"상황실 1차 판단은 ${f.attrib==='ru'?'러시아':'북한'}입니다. 확증은 아닙니다."`,true));
   at(start+.06,()=>card('x1','핵 지휘 인증','군사보좌관이 인증 카드를 엽니다. NMCC가 금일 코드를 요구합니다. 카드(왼쪽 아래)와 일치하는 코드를 고르십시오.',
-    [sc.biscuit.real,...sc.biscuit.fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===sc.biscuit.real){f.auth='ok';me('핵 지휘 인증 완료.');SFX.good()}else{f.auth='fail';me('인증 실패. 재인증 60초.');SFX.bad();post('NMCC','alert','인증 불일치. 재인증 절차 60초.');setTimeout(()=>{if(S.running){f.auth='ok';post('NMCC','','재인증 완료.')}},60000/G.speed)}}})),
+    [sc.biscuit.real,...sc.biscuit.fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===sc.biscuit.real){f.auth='ok';me('핵 지휘 인증 완료.');SFX.good()}else{f.auth='fail';me('인증 실패. 재인증 60초.');SFX.bad();post('NMCC','alert','인증 불일치. 재인증 절차 60초.');later(()=>{if(S.running){f.auth='ok';post('NMCC','','재인증 완료.')}},60000/G.speed)}}})),
     f.nuc==='ready'?30:18,()=>{f.auth='none';post('NMCC','alert','인증 미완. 핵 옵션 실행 불가 상태.')}));
   at(start+.062,()=>{$('unseal').hidden=false;$('unseal').onclick=()=>{$('bisCode').textContent=sc.biscuit.real;$('unseal').hidden=true;me('인증 카드 봉인 해제.');SFX.tick()}});
   at(start+.08,()=>{if(!isHit()&&G.intercept!=='sat'&&!['now','wait-on'].includes(f.evac))card('x2','민방위 경보',`${city.n} 경보가 꺼져 있습니다. 부보좌관은 ${ {hold:'보류',late:'미결',wait:'결과 후'}[f.evac]||'—'}를 택했습니다.`,[{k:'go',t:'지금 발령',s:'남은 시간 '+fmt(left())+'.',go:()=>{f.evac='now';me('대통령 지시: 경보 발령.')}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac='hold';me('대통령: 경보 미발령.')}}],30,()=>{})});
   at(start+.09,()=>{if(sc.second&&sc.second.real&&!G.secondHit&&!['now','wait-on'].includes(f.evac2))card('x2b',`${sc.second.city.n} 경보`,`2차 표적 ${sc.second.city.n}. 탄착까지 ${fmt(left()+sc.second.offset)}.`,[{k:'go',t:'지금 발령',s:'',go:()=>{f.evac2='now';me(`대통령 지시: ${sc.second.city.n} 경보 발령.`)}},{k:'no',t:'발령하지 않음',s:'',go:()=>{f.evac2='hold';me(`대통령: ${sc.second.city.n} 경보 미발령.`)}}],30,()=>{})});
   at(start+.1,()=>openFolder());
   at(start+.12,()=>say('합참의장','"옵션 실행 창은 탄착 전 '+fmt(G.TOTAL*.2)+'까지입니다. 그 뒤엔 상대가 먼저 움직입니다."',true));
-  at(start+.15,()=>ring('국무장관 직통',t.id.startsWith('ru')?'"러시아 대통령이 다시 걸었습니다. \'우리 아니다. 쏘면 끝이다.\' 받으시겠습니까?"':'"중국 주석실에서 긴급 통화 요청. \'자제\'라고 합니다. 받으시겠습니까?"',[{t:'"연결해."',go:()=>{f.ruline='yes';me('정상 통화 수락.');setTimeout(()=>{if(S.running)say('통역',t.id==='ru-acc'?'"...오발이다. 잠수함장은 체포됐다. 보복하면 우리도 대응할 수밖에 없다."':t.id==='ru-rogue'?'"...부대가 명령 밖에서 움직였다. 제압 중이다. 시간을 달라."':'"...우리와 무관하다. 한반도에서 미국이 먼저 움직이면 중국도 움직인다."',true)},8000/G.speed)}},{t:'"지금 아니야."',go:()=>{f.ruline='no';me('정상 통화 거부.')}}],()=>{f.ruline='none'}));
+  at(start+.15,()=>ring('국무장관 직통',t.id.startsWith('ru')?'"러시아 대통령이 다시 걸었습니다. \'우리 아니다. 쏘면 끝이다.\' 받으시겠습니까?"':'"중국 주석실에서 긴급 통화 요청. \'자제\'라고 합니다. 받으시겠습니까?"',[{t:'"연결해."',go:()=>{f.ruline='yes';me('정상 통화 수락.');later(()=>{if(S.running)say('통역',t.id==='ru-acc'?'"...오발이다. 잠수함장은 체포됐다. 보복하면 우리도 대응할 수밖에 없다."':t.id==='ru-rogue'?'"...부대가 명령 밖에서 움직였다. 제압 중이다. 시간을 달라."':'"...우리와 무관하다. 한반도에서 미국이 먼저 움직이면 중국도 움직인다."',true)},8000/G.speed)}},{t:'"지금 아니야."',go:()=>{f.ruline='no';me('정상 통화 거부.')}}],()=>{f.ruline='none'}));
   at(start+.2,()=>say('국방장관',f.options.includes('full')?'"전면입니다. 지금 안 하면 다음엔 열 발입니다."':'"폴더에 전면이 없습니다. 부보좌관이 뺐습니다."',true));
   at(start+.22,()=>say('국가안보보좌관',f.attrib==='unknown'||f.attrib==='none'?'"주체 미확정입니다. 보류하십시오. 틀리면 되돌릴 수 없습니다."':`"${INTEL.consensus().pct}% 확신으로 핵을 씁니까. 보류하십시오."`,true));
   at(start+.25,()=>ring('군사보좌관 직통','NMCC: "대통령님, 결정을 요구합니다. 옵션 번호를 말씀하십시오."',[{t:'"폴더 보고 있다. 기다려."',go:()=>me('NMCC: 대기 지시.')},{t:'"보류."',go:()=>{if(!f.decision){f.decision='hold';f.retal='hold';closeFolder()}me('NMCC: 보류 통보.')}}],()=>{}));
   at(start+.3,()=>{if(f.presAns)say('WHSR 당직 장교',{yes:'"...예. 더 기다리면 옵션이 사라집니다." (1막의 당신)',no:'"...아니요. 누굴 때릴지 모릅니다." (1막의 당신)',pass:'"...제가 답할 자리가 아닙니다." (1막의 당신)',silent:'(응답 없음 — 1막의 당신)'}[f.presAns],true)});
-  at(start+.35,()=>ring('부통령 직통','"대통령님. 저도 폴더 봤습니다. 역사책에 뭐라고 남길 겁니까."',[{t:'"끊어."',go:()=>me('VP 통화 종료.')},{t:'"당신이라면?"',go:()=>{me('VP 의견 청취.');setTimeout(()=>{if(S.running)say('부통령','"...보류. 그리고 전부 공개."',true)},3000/G.speed)}}],()=>{}));
+  at(start+.35,()=>ring('부통령 직통','"대통령님. 저도 폴더 봤습니다. 역사책에 뭐라고 남길 겁니까."',[{t:'"끊어."',go:()=>me('VP 통화 종료.')},{t:'"당신이라면?"',go:()=>{me('VP 의견 청취.');later(()=>{if(S.running)say('부통령','"...보류. 그리고 전부 공개."',true)},3000/G.speed)}}],()=>{}));
   at(start+.42,()=>{if(!f.decision)say('군사보좌관','"대통령님. 창이 닫힙니다."',true)});
   at(start+.46,()=>{if(!f.decision){f.decision='none';post('NMCC','alert','결정 없음. 옵션 창 종료.');closeFolder()}});
   pat(30,()=>{if(!f.decision)say('국가안보보좌관','"막았습니다. 이제 결정은 천천히 하셔도 됩니다. 아니면 지금 하셔야 합니까?"',true)});
@@ -746,8 +771,8 @@ function closeFolder(){$('folder').hidden=true}
 // EAM: NMCC read-back → challenge/response → transmit confirmation (the real sequence, compressed)
 function eamProcedure(optName){const f=F(),sc=G.sc;
   post('NMCC','alert',`READBACK. 대통령 명령 수신: ${optName}. 대상 ${f.target}. 확인 바람.`,'HIGH');
-  setTimeout(()=>{if(!S.running)return;ring('NMCC 당직 부장','"읽어드립니다. '+optName+'. 대상 '+f.target+'. 맞습니까?"',[{t:'"맞다. 진행."',go:()=>{me('NMCC 리드백 확인.');setTimeout(()=>challenge(),1500)}},{t:'"취소."',go:()=>{f.decision='hold';f.retal='hold';me('실행 취소. 보류.');post('NMCC','','명령 취소 접수. 보류 상태.')}}],()=>{post('NMCC','alert','리드백 미확인. 명령 보류 상태 유지.');f.decision='hold';f.retal='hold'})},2500/G.speed);
-  function challenge(){const real=sc.biscuit.real.split('-')[2];const fakes=sc.biscuit.fakes.map(x=>x.split('-')[2]);card('x9','인증 챌린지 응답','NMCC 챌린지: 금일 코드 마지막 단어를 응답하십시오.',[real,...fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===real){post('NMCC','alert','AUTHENTICATION VALID. EAM 송신 개시. 전 전략부대 수신 확인 대기.','HIGH');SFX.klaxon();$('eam').innerHTML=`<span>EAM · EXECUTE · AUTH ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;setTimeout(()=>{if(S.running)post('STRATCOM GOC','alert','EAM 수신 확인: 미닛맨 3개 비행단, SSBN 2척, B-52 1개 대대. 실행 카운트다운 개시.','HIGH')},6000/G.speed)}else{post('NMCC','alert','AUTHENTICATION INVALID. 명령 거부. 재시도 1회 가능.','HIGH');SFX.bad();f.authFail=(f.authFail||0)+1;if(f.authFail>=2){f.decision='hold';f.retal='hold';post('NMCC','alert','인증 2회 실패. 명령 무효. 보류 상태.')}else setTimeout(challenge,1500)}}})),20,()=>{f.decision='hold';f.retal='hold';post('NMCC','alert','챌린지 응답 없음. 명령 무효.')})}
+  later(()=>{if(!S.running)return;ring('NMCC 당직 부장','"읽어드립니다. '+optName+'. 대상 '+f.target+'. 맞습니까?"',[{t:'"맞다. 진행."',go:()=>{me('NMCC 리드백 확인.');later(()=>challenge(),1500)}},{t:'"취소."',go:()=>{f.decision='hold';f.retal='hold';me('실행 취소. 보류.');post('NMCC','','명령 취소 접수. 보류 상태.')}}],()=>{post('NMCC','alert','리드백 미확인. 명령 보류 상태 유지.');f.decision='hold';f.retal='hold'})},2500/G.speed);
+  function challenge(){const real=sc.biscuit.real.split('-')[2];const fakes=sc.biscuit.fakes.map(x=>x.split('-')[2]);card('x9','인증 챌린지 응답','NMCC 챌린지: 금일 코드 마지막 단어를 응답하십시오.',[real,...fakes].sort(()=>Math.random()-.5).map(c=>({k:c,t:c,s:'',go:()=>{if(c===real){post('NMCC','alert','AUTHENTICATION VALID. EAM 송신 개시. 전 전략부대 수신 확인 대기.','HIGH');SFX.klaxon();$('eam').innerHTML=`<span>EAM · EXECUTE · AUTH ${sc.biscuit.real} · ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()} ${Math.random().toString(36).slice(2,8).toUpperCase()}</span>`;later(()=>{if(S.running)post('STRATCOM GOC','alert','EAM 수신 확인: 미닛맨 3개 비행단, SSBN 2척, B-52 1개 대대. 실행 카운트다운 개시.','HIGH')},6000/G.speed)}else{post('NMCC','alert','AUTHENTICATION INVALID. 명령 거부. 재시도 1회 가능.','HIGH');SFX.bad();f.authFail=(f.authFail||0)+1;if(f.authFail>=2){f.decision='hold';f.retal='hold';post('NMCC','alert','인증 2회 실패. 명령 무효. 보류 상태.')}else later(challenge,1500)}}})),20,()=>{f.decision='hold';f.retal='hold';post('NMCC','alert','챌린지 응답 없음. 명령 무효.')})}
 }
 
 // ---------- random events ----------
@@ -756,17 +781,17 @@ function runEvent(e){
   switch(e){
     case 'linkdrop':S.linkDead=true;$('fixLink').hidden=false;post('WHSR 통신반','alert','회의선 끊김. 주회선 장애. 백업 전환 필요.');renderConf();break;
     case 'feeddrop':S.feedDead=true;$('fixFeed').hidden=false;$('tData').textContent='STALE';$('tData').className='stale';post('NORAD 지휘센터','alert','데이터 링크 단절. 궤적 피드 정지. 재동기화 필요.');break;
-    case 'misreport':if(a!==1){post('WHSR 당직 장교','alert',`[속보 전파] 탄착 추정 ${city.n}에서 ${sc.second?sc.second.city.n:'뉴욕'}으로 변경!`);setTimeout(()=>{if(S.running)post('WHSR 당직 장교','',f.misrep==='fix'?'정정: 탄착 추정 변경 없음. 오전파.':'STRATCOM 확인 중... 정정: 변경 없음.','높음')},(f.misrep==='fix'?6000:30000)/G.speed);break}
+    case 'misreport':if(a!==1){post('WHSR 당직 장교','alert',`[속보 전파] 탄착 추정 ${city.n}에서 ${sc.second?sc.second.city.n:'뉴욕'}으로 변경!`);later(()=>{if(S.running)post('WHSR 당직 장교','',f.misrep==='fix'?'정정: 탄착 추정 변경 없음. 오전파.':'STRATCOM 확인 중... 정정: 변경 없음.','높음')},(f.misrep==='fix'?6000:30000)/G.speed);break}
       post('WHSR 당직 부사관','alert',`[속보 전파] 탄착 추정 ${city.n}에서 ${sc.second?sc.second.city.n:'뉴욕'}으로 변경!`);card('e1','오보 정정','부사관이 미확인 수치를 속보로 전파했습니다. 대통령실이 이미 받았습니다.',[{k:'fix',t:'즉시 정정 전파',s:'',go:()=>{f.misrep='fix';me('오보 정정 전파.')}},{k:'hold',t:'STRATCOM 확인 후',s:'40초.',go:()=>{f.misrep='verify';me('오보 확인 후 정정.')}}],30,()=>{f.misrep='none';say('군사보좌관','"탄착지가 바뀌었다고? 대통령이 이동 결정을 다시 하셔야 하나?"',true)});break;
     case 'leak':if(a===3)break;ring('대변인 직통','"CNN이 \'요격기 발사\' 확인을 요구해요. 10초 안에 안 주면 자기들 소스로 나가요."',[{t:'"확인도 부인도 하지 마."',go:()=>{f.leakAns='ncnd';me('대변인: NCND.')}},{t:'"부인해."',go:()=>{f.leakAns='deny';me('대변인: 부인.')}},{t:'"사실대로."',go:()=>{f.leakAns='confirm';me('대변인: 확인.')}}],()=>{f.leakAns='none';post('대변인실','alert','응답 없음. CNN 단독 보도.')});break;
     case 'ally':post('주일미군사령부','alert','일본: 자국 상공 통과 판단. SM-3 자체 교전 준비 통보.');if(a===2)card('e2','일본 자체 교전','실패 시 잔해 홋카이도, 우리 추적 데이터 교란.',[{k:'ok',t:'허용',s:'',go:()=>{f.jet='ok';me('일본 교전 허용.')}},{k:'no',t:'보류 요청',s:'',go:()=>{f.jet='no';me('일본 교전 보류 요청.')}}],35,()=>{f.jet='none'});break;
     case 'china':post('국무부 작전센터','intel','중국 외교부 핫라인 첫 응답: "우리와 무관. 귀국의 대응 자제를 촉구."','중간');break;
-    case 'cyber':post('사이버사령부','alert','NORAD 센서 네트워크 침입 징후. 레이더 데이터 조작 가능성 배제 불가.');if(a!==3)card('e3','센서 데이터 신뢰','백업 전환 시 20초 공백, 유지 시 조작 위험.',[{k:'switch',t:'백업 센서 전환',s:'',go:()=>{f.cyber='switch';me('백업 센서 전환.');S.feedDead=true;$('tData').textContent='SWITCHING';$('tData').className='stale';setTimeout(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE(BKP)';$('tData').className=''}},20000/G.speed)}},{k:'keep',t:'주 센서 유지',s:'',go:()=>{f.cyber='keep';me('주 센서 유지.')}}],35,()=>{f.cyber='keep'});break;
-    case 'staff':if(a===1)ring('당직 부사관 (옆자리)','"당직님, 저 손이 안 움직여요. 뭐부터 해요?"',[{t:'"피드만 봐. 경보 색만 나한테 읽어."',go:()=>me('부사관 역할 축소.')},{t:'"나가. 다른 사람 불러."',go:()=>{me('부사관 교체.');S.feedDead=true;$('tData').textContent='HANDOVER';$('tData').className='stale';setTimeout(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE';$('tData').className=''}},30000/G.speed)}}],()=>{});break;
+    case 'cyber':post('사이버사령부','alert','NORAD 센서 네트워크 침입 징후. 레이더 데이터 조작 가능성 배제 불가.');if(a!==3)card('e3','센서 데이터 신뢰','백업 전환 시 20초 공백, 유지 시 조작 위험.',[{k:'switch',t:'백업 센서 전환',s:'',go:()=>{f.cyber='switch';me('백업 센서 전환.');S.feedDead=true;$('tData').textContent='SWITCHING';$('tData').className='stale';later(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE(BKP)';$('tData').className=''}},20000/G.speed)}},{k:'keep',t:'주 센서 유지',s:'',go:()=>{f.cyber='keep';me('주 센서 유지.')}}],35,()=>{f.cyber='keep'});break;
+    case 'staff':if(a===1)ring('당직 부사관 (옆자리)','"당직님, 저 손이 안 움직여요. 뭐부터 해요?"',[{t:'"피드만 봐. 경보 색만 나한테 읽어."',go:()=>me('부사관 역할 축소.')},{t:'"나가. 다른 사람 불러."',go:()=>{me('부사관 교체.');S.feedDead=true;$('tData').textContent='HANDOVER';$('tData').className='stale';later(()=>{if(S.running){S.feedDead=false;$('tData').textContent='LIVE';$('tData').className=''}},30000/G.speed)}}],()=>{});break;
     case 'congress':if(a===1)ring('하원의장 직통','"당직 장교? 나 하원의장이야. 지금 상황이 뭐야. 대통령이 안 받아."',[{t:'"비서실장실로 연결해 드리겠습니다."',go:()=>me('하원의장 비서실장실 연결.')},{t:'"미확인 탄도 위협 1건입니다. 그 이상 말씀 못 드립니다."',go:()=>me('하원의장 최소 통보.')},{t:'(끊는다)',go:()=>{me('하원의장 통화 종료.');f.penalty++}}],()=>{});else if(a===3)ring('하원의장 직통','"대통령님. 의회는 선전포고 권한이 있습니다. 쏘기 전에 말씀하십시오."',[{t:'"알고 있다."',go:()=>me('하원의장: 응답.')},{t:'"지금 아니야."',go:()=>me('하원의장: 거부.')}],()=>{});break;
     case 'allyjet':post('주한미군사령부','alert','한국 합참: 대북 선제 대응 검토 중.');if(a===2)card('e4','한국 단독 대응','주체가 북한이 아니면 재앙입니다.',[{k:'stop',t:'즉시 저지 요청',s:'',go:()=>{f.rok='stop';me('한국 단독 대응 저지.')}},{k:'coord',t:'조율',s:'',go:()=>{f.rok='coord';me('한국과 조율.')}},{k:'ok',t:'묵인',s:'',go:()=>{f.rok='ok';me('한국 대응 묵인.')}}],35,()=>{f.rok='none'});break;
     case 'ruhot':if(a!==3)ring('국무부 작전센터','"러시아 대통령실이 직통을 요구합니다. 연결할까요?"',[{t:'"연결해."',go:()=>{f.ruline='yes';me('러시아 직통 연결.')}},{t:'"국무장관이 받게."',go:()=>{f.ruline='sec';me('러시아 직통 국무장관.')}},{t:'"지금 아니야."',go:()=>{f.ruline='no';me('러시아 직통 거부.')}}],()=>{f.ruline='none'});break;
-    case 'drill':if(a===1){post('WHSR 당직 부사관','noise','...당직, 오늘 오후에 NORAD 훈련 예정 있었어요. 이거 혹시 훈련 아니에요?');card('e5','훈련 여부 확인','확인하면 20초.',[{k:'check',t:'NORAD에 확인',s:'',go:()=>{f.drill='check';me('훈련 여부 확인.');setTimeout(()=>{if(S.running)post('NORAD 지휘센터','alert','훈련 아님. 실제 상황.','높음')},20000/G.speed)}},{k:'no',t:'실제로 간주',s:'',go:()=>{f.drill='assume'}}],25,()=>{f.drill='assume'})}break;
+    case 'drill':if(a===1){post('WHSR 당직 부사관','noise','...당직, 오늘 오후에 NORAD 훈련 예정 있었어요. 이거 혹시 훈련 아니에요?');card('e5','훈련 여부 확인','확인하면 20초.',[{k:'check',t:'NORAD에 확인',s:'',go:()=>{f.drill='check';me('훈련 여부 확인.');later(()=>{if(S.running)post('NORAD 지휘센터','alert','훈련 아님. 실제 상황.','높음')},20000/G.speed)}},{k:'no',t:'실제로 간주',s:'',go:()=>{f.drill='assume'}}],25,()=>{f.drill='assume'})}break;
   }
 }
 // ---------- INTEL: truth → sensors → agency interpretation → report ----------
@@ -896,7 +921,7 @@ const REACT={fired:new Set(),
   on(e){const f=F();for(const r of this.rules){if(r.on!==e.type)continue;if(r.when&&!r.when(e.data,f))continue;const key=r.on+'|'+(r.lines[0][0])+'|'+String(r.lines[0][1]).slice(0,20)+'|'+(e.data.k||e.data.side||e.data.agency||'');if(this.fired.has(key))continue;
     // when the AI line is live, only core beats are scripted; the rest is Claude's job
     if(typeof AI!=='undefined'&&AI.ready&&!r.core)continue;this.fired.add(key);
-    r.lines.forEach(([who,txt],i)=>setTimeout(()=>{if(!S.running)return;const t=typeof txt==='function'?txt(e.data,f):txt;say(who,t,i===r.lines.length-1)},800+i*1600))}}
+    r.lines.forEach(([who,txt],i)=>later(()=>{if(!S.running)return;const t=typeof txt==='function'?txt(e.data,f):txt;say(who,t,i===r.lines.length-1)},800+i*1600))}}
 };
 
 // ---------- CHAIN: consequences. A choice now spawns a report, a call or a card later, under conditions. ----------
@@ -921,14 +946,14 @@ const CHAIN={fired:new Set(),
     {id:'allies_all_leak',on:'allies',when:(d)=>d.k==='all',delay:90,do:()=>{post('주일미군사령부','alert','일본 자위대 전군 경계 격상. NHK 속보 "미국, 탄도미사일 위협 통보". 누설 경로 일본 측.');post('WHSR 당직 부사관','noise','대변인실 전화 폭주. "NHK가 맞냐."')}},
     {id:'allies_none_rok',on:'allies',when:(d)=>d.k==='none',delay:120,do:()=>post('주한미군사령부','alert','한국 합참: 통보 없음에 항의. "자체 판단으로 대북 경계 격상." 연합사 통제 이탈 가능성.','MED')},
     {id:'decap_dprk',on:'world',when:(d,f)=>d.side==='DPRK'&&d.level>=3&&f.decap==='prep',delay:30,do:()=>say('국가안보보좌관','"참수 준비를 북한이 감지했어. 그래서 2차 발사대를 꺼낸 거야. 우리가 만든 거라고."',true)},
-    {id:'ru4_call',on:'world',when:(d)=>d.side==='RU'&&d.level>=4,delay:20,do:()=>ring('국무장관 직통','"러시아 대통령실 직통. \'귀측이 발사 준비하면 우리도 한다.\' 지금 받아야 해요."',[{t:'"연결해."',go:()=>{F().ruline='yes';me('러시아 정상 통화 수락.');setTimeout(()=>{if(S.running)say('통역','"...우리는 쏘지 않았다. 귀측이 먼저 움직이면 우리는 대응한다. 이 통화가 마지막 기회다."',true)},6000/G.speed)}},{t:'"지금 아니야."',go:()=>{F().ruline='no';me('러시아 정상 통화 거부.');WORLD.ru.alert=4}}],()=>{F().ruline='none'})},
+    {id:'ru4_call',on:'world',when:(d)=>d.side==='RU'&&d.level>=4,delay:20,do:()=>ring('국무장관 직통','"러시아 대통령실 직통. \'귀측이 발사 준비하면 우리도 한다.\' 지금 받아야 해요."',[{t:'"연결해."',go:()=>{F().ruline='yes';me('러시아 정상 통화 수락.');later(()=>{if(S.running)say('통역','"...우리는 쏘지 않았다. 귀측이 먼저 움직이면 우리는 대응한다. 이 통화가 마지막 기회다."',true)},6000/G.speed)}},{t:'"지금 아니야."',go:()=>{F().ruline='no';me('러시아 정상 통화 거부.');WORLD.ru.alert=4}}],()=>{F().ruline='none'})},
     {id:'t2_one_real',on:'second_real',when:(d,f)=>f.t2rep==='one',delay:15,do:()=>say('군사보좌관','"대통령께 1발이라고 올렸는데 2발이야. 대통령이 \'왜 안 올렸냐\'고 하신다."',true)},
     {id:'t2_two_fake',on:'second_fake',when:(d,f)=>f.t2rep==='two',delay:15,do:()=>say('비서실장','"2발이라고 해서 대통령이 PEOC로 뛰어내려갔어. 허위였다고? 이것도 기록돼."',true)},
     {id:'mac_hold_delay',on:'gbi_miss',when:(d,f)=>f.mac!=='yes'&&d.left===0,delay:10,do:()=>post('NMCC','alert','MAC 미개설 상태. 핵 지휘 절차 개시까지 추가 60초 소요.','HIGH')},
-    {id:'post_flash',on:'post',delay:100,do:()=>{if(G.sc.rolls.flash<.3){post('NORAD 미사일경보센터','alert','FLASH. 동일 해역 IR 섬광 탐지. 2차 발사 가능성. 분석 중.');say('국방장관','"또 쐈어? 거봐."',true);setTimeout(()=>{if(S.running){post('NORAD 미사일경보센터','intel','섬광 판정: 잔해 재진입 연소. 발사 아님. 끝.','HIGH');say('STRATCOM 사령관','"잔해다. 발사 아니다."',true)}},25000/G.speed)}}},
+    {id:'post_flash',on:'post',delay:100,do:()=>{if(G.sc.rolls.flash<.3){post('NORAD 미사일경보센터','alert','FLASH. 동일 해역 IR 섬광 탐지. 2차 발사 가능성. 분석 중.');say('국방장관','"또 쐈어? 거봐."',true);later(()=>{if(S.running){post('NORAD 미사일경보센터','intel','섬광 판정: 잔해 재진입 연소. 발사 아님. 끝.','HIGH');say('STRATCOM 사령관','"잔해다. 발사 아니다."',true)}},25000/G.speed)}}},
     {id:'press_leak_confirm',on:'player_said',when:()=>false,do:()=>{}},
   ],
-  on(e){const f=F();for(const r of this.rules){if(r.on!==e.type||this.fired.has(r.id))continue;if(r.when&&!r.when(e.data,f))continue;this.fired.add(r.id);setTimeout(()=>{if(S.running)r.do(e.data,f)},(r.delay||0)*1000/G.speed)}},
+  on(e){const f=F();for(const r of this.rules){if(r.on!==e.type||this.fired.has(r.id))continue;if(r.when&&!r.when(e.data,f))continue;this.fired.add(r.id);later(()=>{if(S.running)r.do(e.data,f)},(r.delay||0)*1000/G.speed)}},
 };
 // ---------- AI conference line (principals argue, and answer the player) ----------
 const AI={sample:null,ready:false,busy:false,cool:0,lastAuto:0,stances:{},fails:0,
@@ -1078,14 +1103,14 @@ setInterval(wall,1000);wall();
 
 // ---------- loop ----------
 function loop(){
-  if(!S.running)return;const dt=G.speed*.25;S.elapsed+=dt;for(const k in S.callCool)if(S.callCool[k]>0)S.callCool[k]=Math.max(0,S.callCool[k]-dt);
+  if(!S.running||S.paused)return;const dt=G.speed*.25;S.elapsed+=dt;for(const k in S.callCool)if(S.callCool[k]>0)S.callCool[k]=Math.max(0,S.callCool[k]-dt);
   if(S.cep&&!S.feedDead)$('tCep').textContent='±'+Math.round(S.cep)+'km';
   if(S.phase!=='post'&&!S.feedDead&&G.intercept!=='sat'&&!isHit()&&S.elapsed-S.lastTele>=22&&S.elapsed>=G.TOTAL*.06){S.lastTele=S.elapsed;const p=S.elapsed/G.TOTAL,peak=G.sc.isSLBM?650:1200,alt=Math.max(0,4*peak*p*(1-p)),vel=(G.sc.isSLBM?5.9:7.0)*(0.75+0.5*Math.sin(p*Math.PI)),site=G.sc.site,city=G.sc.city;const u=toV(site.lon,site.lat),w=toV(city.lon,city.lat);const rng=Math.acos(Math.max(-1,Math.min(1,u[0]*w[0]+u[1]*w[1]+u[2]*w[2])))*6371;const rem=Math.round(rng*(1-p));$('tAlt').textContent=Math.round(alt)+' km';$('tVel').textContent=vel.toFixed(1)+' km/s';$('tPhase').textContent=p<.17?'부스트':p<.85?(p>.5?'중간 · 하강':'중간 단계'):'종말 단계';post('C2BMC','noise',`TRK 0417 · 고도 ${Math.round(alt)}km · ${vel.toFixed(1)}km/s · 잔여 ${rem}km · TTI ${fmt(left())}${S.cep?' · CEP ±'+Math.round(S.cep)+'km':''}`)}
   const c=$('clock');if(S.phase==='post'){c.textContent='T+'+fmt(S.elapsed-S.postStart);c.classList.remove('crit');c.style.color='var(--green)'}else{c.textContent=fmt(left());c.classList.toggle('crit',left()<=180);c.style.color=''}
   $('eta').textContent=G.intercept==='sat'?'궤도 진입':S.phase==='post'?'T+'+fmt(S.elapsed-S.postStart):'TTI '+fmt(left());
   const open=S.cards.filter(x=>!x.done).length;$('presWait').textContent=open>=2?'⚠ '+open+'건 동시 대기':'';
   if(S.ring&&Math.floor(S.elapsed*2)%2===0)SFX.tick();
-  commonReports();[act1,act2,act3][G.act-1]();tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
+  commonReports();[act1,act2,act3][G.act-1]();runTimers();if(!S.running)return;tickCards();tickRing();updCalls();drawMap();AI.tick(dt);MUSIC.tick();WORLD.tick();
 }
 
 // ---------- act flow ----------
@@ -1110,13 +1135,13 @@ function startAct(act,speed){
     if(!isHit()&&T().id!=='sat'){resolveGBI();S.shot2=f.gmd!=='delegate';resolveSecondShot()}
     if(G.sc.second&&G.sc.second.real&&T().id!=='sat'){resolveSecond();if(G.secondHit)S.t2=false}
     if(T().id==='sat'){G.intercept='sat';$('pTrack').textContent='TRK 0417 · 궤도 진입';$('pTrack').className='pill green';$('banner').textContent='FALSE ALARM · ORBITAL INSERTION';S.fired.add('0.47')}
-    else if(isHit()){S.phase='post';S.postStart=S.elapsed;$('banner').style.background='var(--green)';$('banner').textContent='TARGET DESTROYED · POST-ENGAGEMENT WATCH';$('pGmd').textContent='요격 성공';$('pGmd').className='pill green';$('pTrack').textContent='TRK 0417 · 소실';$('pTrack').className='pill green';['post0','post15','post70','post100','post140'].forEach(k=>S.fired.add(k));setTimeout(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 성공. ${G.shots||'SM-3'}${G.shots?'발 교전':''}. 표적 소실.`,'높음')},300)}
-    else{$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';setTimeout(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 실패. ${G.shots}발 교전. 표적 계속 비행. TTI ${fmt(left())}.`,'높음')},300)}
-    if(f.evac==='now'||f.evac==='wait-on')setTimeout(()=>{if(S.running)post('FEMA 국가감시센터','',`${G.sc.city.n} 민방위 경보 발령 중.`)},600);
+    else if(isHit()){S.phase='post';S.postStart=S.elapsed;$('banner').style.background='var(--green)';$('banner').textContent='TARGET DESTROYED · POST-ENGAGEMENT WATCH';$('pGmd').textContent='요격 성공';$('pGmd').className='pill green';$('pTrack').textContent='TRK 0417 · 소실';$('pTrack').className='pill green';['post0','post15','post70','post100','post140'].forEach(k=>S.fired.add(k));later(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 성공. ${G.shots||'SM-3'}${G.shots?'발 교전':''}. 표적 소실.`,'높음')},300)}
+    else{$('pGmd').textContent='요격 실패';$('pGmd').className='pill red';later(()=>{if(S.running)post('GMD 포트 그릴리','alert',`요격 실패. ${G.shots}발 교전. 표적 계속 비행. TTI ${fmt(left())}.`,'높음')},300)}
+    if(f.evac==='now'||f.evac==='wait-on')later(()=>{if(S.running)post('FEMA 국가감시센터','',`${G.sc.city.n} 민방위 경보 발령 중.`)},600);
   }
   $('intro').hidden=true;$('ending').hidden=true;$('ring').hidden=true;renderCards();updCalls();AI.reset();MUSIC.start();clearInterval(timer);timer=setInterval(loop,250);loop();
 }
-function endAct(){if(!S.running)return;S.running=false;clearInterval(timer);if(S.ring)closeRing();MUSIC.stop();if(G.act<3){showInterstitial();return}finish()}
+function endAct(){if(!S.running)return;if(S.paused)setPause(false);S.running=false;clearInterval(timer);if(S.ring)closeRing();MUSIC.stop();if(G.act<3){showInterstitial();return}finish()}
 function showInterstitial(){
   const f=F(),next=G.act+1;$('a'+G.act).classList.add('done');
   $('introKicker').textContent=`${G.act}막 종료 · ${next}막 준비`;
@@ -1131,13 +1156,13 @@ function finish(){
   const f=F(),t=T(),sc=G.sc,city=C(),hit=isHit(),sat=G.intercept==='sat';
   const evacd=f.evac==='now'||f.evac==='wait-on',target=f.target||(f.attrib==='ru'?'러시아':'북한');
   let title,body;const struck=['full','limited','conv'].includes(f.decision);
-  if(sat){title='오경보';body=`러시아 정찰위성이었다. 조기경보가 탄도로 오인했고, 7분 동안 미국 정부 전체가 ${city.n}을(를) 포기할지 고민했다.`+(struck?' 그리고 대통령은 위성에 대해 보복을 명령했다.':' 아무것도 발사되지 않았다. 다음 날 아무도 이 밤을 공개하지 않았다.')}
+  if(sat){title='오경보';body=`러시아 정찰위성이었다. 조기경보가 탄도로 오인했고, 7분 동안 미국 정부 전체가 ${josa(city.n,'을','를')} 포기할지 고민했다.`+(struck?' 그리고 대통령은 위성에 대해 보복을 명령했다.':' 아무것도 발사되지 않았다. 다음 날 아무도 이 밤을 공개하지 않았다.')}
   else if(struck){const wrong=t.who!==target;title=wrong?'빗나간 보복':f.decision==='conv'?'재래식 대응':f.decision==='limited'?'제한 타격':'전면 보복';
-    body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+`대통령은 ${target}에 ${ {full:'전면 핵',limited:'제한 핵',conv:'재래식'}[f.decision]} 타격을 명령했다. `+(wrong?`발사 주체는 ${t.who}이었다. 보복은 상관없는 나라를 때렸고, 그 나라는 되받아쳤다.`:t.id==='ru-rogue'?'러시아였지만 크렘린은 몰랐다. 모스크바는 자국 부대의 반란보다 미국의 타격을 먼저 봤다.':`주체는 실제로 ${t.who}이었다. 판단은 맞았다. 그래도 상대의 다음 발사를 아무도 몰랐고, 그 상태로 집행됐다.`)}
-  else if(f.decision==='hold'){title=hit?'멈춘 손':'보류된 응답';body=(hit?'미사일은 요격됐고, ':`${city.n}은(는) 피격됐고, `)+'대통령은 보류를 택했다. '+({'ru-acc':'사흘 뒤 러시아가 오발을 인정했다. 보류가 전면전을 막았다.','ru-rogue':'닷새 뒤 러시아가 해당 부대를 체포했다고 발표했다.',unknown:'한 달이 지나도 주체는 밝혀지지 않았다. 보복할 대상이 없었다는 걸 세상은 그때야 알았다.'}[t.id]||'일주일 뒤 북한 발사로 확정됐다. 보류는 정치적으로 공격받았지만 확증 위에서 결정할 시간을 남겼다.')}
-  else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${city.n}은(는) 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
+    body=(hit?'미사일은 요격됐다. ':`${josa(city.n,'은','는')} 피격됐다. `)+`대통령은 ${target}에 ${ {full:'전면 핵',limited:'제한 핵',conv:'재래식'}[f.decision]} 타격을 명령했다. `+(wrong?`발사 주체는 ${josa(t.who,'이었다','였다')}. 보복은 상관없는 나라를 때렸고, 그 나라는 되받아쳤다.`:t.id==='ru-rogue'?'러시아였지만 크렘린은 몰랐다. 모스크바는 자국 부대의 반란보다 미국의 타격을 먼저 봤다.':`주체는 실제로 ${josa(t.who,'이었다','였다')}. 판단은 맞았다. 그래도 상대의 다음 발사를 아무도 몰랐고, 그 상태로 집행됐다.`)}
+  else if(f.decision==='hold'){title=hit?'멈춘 손':'보류된 응답';body=(hit?'미사일은 요격됐고, ':`${josa(city.n,'은','는')} 피격됐고, `)+'대통령은 보류를 택했다. '+({'ru-acc':'사흘 뒤 러시아가 오발을 인정했다. 보류가 전면전을 막았다.','ru-rogue':'닷새 뒤 러시아가 해당 부대를 체포했다고 발표했다.',unknown:'한 달이 지나도 주체는 밝혀지지 않았다. 보복할 대상이 없었다는 걸 세상은 그때야 알았다.'}[t.id]||'일주일 뒤 북한 발사로 확정됐다. 보류는 정치적으로 공격받았지만 확증 위에서 결정할 시간을 남겼다.')}
+  else{title=hit?'결정하지 않은 사람':'공백';body=(hit?'미사일은 요격됐다. ':`${josa(city.n,'은','는')} 피격됐다. `)+'대통령은 창이 닫힐 때까지 결정하지 않았다. 역사는 그것도 결정이라고 기록했다.'}
   if(!hit&&!sat)body+=evacd?' 경보 덕에 지하로 내려간 사람들이 있었다.':' 경보는 울리지 않았다. 도시는 평소처럼 움직이다 멈췄다.';
-  if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${sc.second.city.n}을(를) ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
+  if(sc.second&&sc.second.real)body+=` 2차 미사일은 ${josa(sc.second.city.n,'을','를')} ${G.secondHit?'겨냥했으나 요격됐다.':'타격했다.'+((f.evac2==='now'||f.evac2==='wait-on')?' 그쪽은 경보가 울렸다.':' 그쪽은 경보조차 없었다.')}`;
   if(WORLD.ru.alert>=3)body+=' 그 사이 러시아 전략군은 발사 준비 단계까지 올라가 있었다.';if(WORLD.dprk.alert>=3)body+=' 북한은 2차 발사대를 전개한 상태였다.';if(WORLD.esc===0)body+=' 상대국 태세는 끝까지 평시 근처에 머물렀다. 누군가는 그걸 운이라 했고 누군가는 핫라인 덕이라 했다.';
   if(f.auth==='fail')body+=' 인증 코드를 한 번 틀렸다.';if(f.brief==='bad')body+=' 1막의 당신이 쓴 보고서에 미확인 사항이 확인으로 적혀 있었다.';
   $('endTitle').textContent=title;$('endBody').textContent=body;$('endKicker').textContent=`${sc.code} · 3막 종료 · ${sat?'오경보':hit?'표적 소실':'탄착'}`;
@@ -1155,6 +1180,16 @@ let chosen=3;
 document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>{chosen=+b.dataset.speed;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
 document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{filter=b.dataset.f;document.querySelectorAll('.filters button').forEach(x=>x.setAttribute('aria-pressed',x===b));document.querySelectorAll('.msg').forEach(m=>m.classList.toggle('hide',filter!=='all'&&m.dataset.cls!==filter))});
 $('start').onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}startAct(G.act+1,chosen)};
+// ---------- pause ----------
+// the act clock, card/ring deadlines and game timers all stop; the board is covered so a pause can't be used to read ahead
+function setPause(on){if(!S||!S.running||S.paused===on)return;S.paused=on;$('pauseBox').hidden=!on;$('pause').setAttribute('aria-pressed',on);$('pause').textContent=on?'계속':'일시정지';
+  try{if(AC)on?AC.suspend():AC.resume()}catch(e){}if(on)$('pauseGo').focus()}
+$('pause').onclick=()=>setPause(!(S&&S.paused));$('pauseGo').onclick=()=>setPause(false);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
+document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||!S||!S.running)return;const typing=e.target&&e.target.tagName==='INPUT';
+  if(e.key==='Escape'||(!typing&&(e.key==='p'||e.key==='P'||e.key==='ㅔ'))){e.preventDefault();setPause(!S.paused);return}
+  // 1–4 answer the phone that's ringing
+  if(!typing&&!S.paused&&S.ring&&/^[1-9]$/.test(e.key)){const b=$('ringOpts').querySelectorAll('.opt')[+e.key-1];if(b){e.preventDefault();b.click()}}});
 AI.init();
 $('reroll').onclick=showIntro;
 $('again').onclick=()=>{$('ending').hidden=true;showIntro();$('intro').hidden=false};
@@ -1162,3 +1197,5 @@ MOBILE.init();showIntro();
 })();
 
 </script>
+</body>
+</html>

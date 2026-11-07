@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>18분 상황실</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -10,6 +15,7 @@
   --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   color-scheme:dark;
 }
+[hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:13px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px;box-sizing:border-box;overflow:hidden}
@@ -101,6 +107,9 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
 .ring h3{margin:0;font-family:var(--display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--red);display:flex;justify-content:space-between}
 .ring p{margin:6px 0 8px;font-size:14px;font-weight:500}
 .ring .opt{border-color:#4a2a2a}
+.ring .opt kbd{display:inline-block;min-width:16px;margin-right:6px;padding:0 4px;border:1px solid #4a2a2a;border-radius:2px;font:10px var(--display);color:var(--muted);text-align:center}
+#pause[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+@media (hover:none){.ring .opt kbd{display:none}}
 .ring .bar{height:3px;background:#3a1a1a;margin:0 0 8px;overflow:hidden}.ring .bar i{display:block;height:100%;background:var(--red)}
 .overlay{position:absolute;inset:0;background:rgba(7,11,16,.97);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;z-index:8}
 .sheet{max-width:660px;width:100%}
@@ -197,4 +206,5 @@ canvas{width:100%;height:auto;display:block;max-width:100%}
   .sheet h1{font-size:22px}.acts{flex-direction:column}
 }
 </style>
-
+</head>
+<body>
